@@ -10,7 +10,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=composer /usr/bin/composer /usr/local/bin/composer
 WORKDIR /var/www/html
-RUN git clone https://github.com/rathena/FluxCP.git . \
+# Newer Git versions enforce safe.directory when the web image owns the workdir.
+RUN git config --global --add safe.directory /var/www/html \
+    && git clone https://github.com/rathena/FluxCP.git . \
     && git checkout "${FLUXCP_REF}" \
     && composer install --no-dev --prefer-dist --no-interaction --no-progress
 COPY docker-entrypoint.sh /usr/local/bin/fluxcp-entrypoint
