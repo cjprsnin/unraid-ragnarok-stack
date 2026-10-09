@@ -3,7 +3,7 @@ ARG RATHENA_REF=master
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates git build-essential zlib1g-dev libpcre3-dev \
-    libmariadb-dev libssl-dev libxml2-dev python3 pkg-config \
+    libmariadb-dev libmariadb-dev-compat libssl-dev libxml2-dev python3 pkg-config \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /src
 RUN git clone https://github.com/rathena/rathena.git . \
