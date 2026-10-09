@@ -51,7 +51,6 @@ log_db_port: ${DB_PORT}
 log_db_id: ${DB_USER}
 log_db_pw: ${DB_PASSWORD}
 log_db_db: ${LOG_DB_NAME}
-import: conf/import/inter_conf.txt
 EOF
 
 echo "rAthena configuration prepared."
