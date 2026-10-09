@@ -18,7 +18,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --system --create-home --home-dir /rathena --shell /usr/sbin/nologin rathena
 WORKDIR /rathena
-COPY --from=build --chown=rathena:rathena /src/ /rathena/\nCOPY --from=build --chown=rathena:rathena /src/conf/ /usr/share/rathena-default-conf/
+COPY --from=build --chown=rathena:rathena /src/ /rathena/
+COPY --from=build --chown=rathena:rathena /src/conf/ /usr/share/rathena-default-conf/
 COPY --chmod=755 entrypoint.sh /usr/local/bin/rathena-entrypoint
 EXPOSE 6900/tcp 6121/tcp 5121/tcp
 ENTRYPOINT ["/usr/local/bin/rathena-entrypoint"]
