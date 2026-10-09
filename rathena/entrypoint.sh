@@ -3,6 +3,17 @@ set -Eeuo pipefail
 
 cd /rathena
 
+# Unraid bind mounts are commonly root-owned. Initialize and fix ownership once,
+# then re-exec this script as the unprivileged rAthena account.
+if [[ "$(id -u)" -eq 0 ]]; then
+  mkdir -p conf save log
+  if [[ ! -f conf/login-server.conf || ! -f conf/char-server.conf || ! -f conf/map-server.conf ]]; then
+    cp -an /usr/share/rathena-default-conf/. conf/
+  fi
+  chown -R rathena:rathena conf save log
+  exec gosu rathena "$0" "$@"
+fi
+
 : "${DB_HOST:=ragnarok-db}"
 : "${DB_PORT:=3306}"
 : "${DB_NAME:=ragnarok}"
