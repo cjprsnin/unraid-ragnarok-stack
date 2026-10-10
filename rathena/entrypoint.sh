@@ -116,6 +116,10 @@ if [[ "${AUTO_IMPORT_SQL,,}" == "true" ]]; then
   else
     echo "Database ${LOG_DB_NAME} already contains ${log_tables} table(s); leaving its schema untouched."
   fi
+  # web.sql uses CREATE TABLE IF NOT EXISTS and is safe to apply repeatedly;
+  # FluxCP uses these tables for web-side configuration and guild emblem data.
+  echo "Ensuring rAthena web schema tables exist in ${DB_NAME}."
+  MYSQL_PWD="${DB_PASSWORD}" mariadb -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" < /rathena/sql-files/web.sql
 else
   echo "AUTO_IMPORT_SQL is disabled; skipping automatic schema initialization."
 fi
