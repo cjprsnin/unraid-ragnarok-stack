@@ -23,7 +23,6 @@ fi
 : "${DB_USER:=ragnarok}"
 : "${DB_PASSWORD:?Set DB_PASSWORD for the dedicated Ragnarok SQL user}"
 : "${SERVER_IP:?Set SERVER_IP to the server LAN address}"
-: "${PACKETVER:=20200401}"
 : "${AUTO_IMPORT_SQL:=true}"
 
 # Validate database identifiers before placing them into generated configuration.
@@ -132,7 +131,7 @@ fi
 
 echo "rAthena configuration prepared."
 echo "Database endpoint: ${DB_HOST}:${DB_PORT}; databases: ${DB_NAME}, ${LOG_DB_NAME}"
-echo "Advertised server address: ${SERVER_IP}; PACKETVER=${PACKETVER}"
+echo "Advertised server address: ${SERVER_IP}; packet version is compiled into this image."
 echo "NOTE: database schema import and public client-address configuration are separate setup steps."
 
 # Run the three required daemons concurrently and stop the whole stack if any exits.
