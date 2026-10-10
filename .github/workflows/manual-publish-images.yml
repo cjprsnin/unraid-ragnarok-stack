@@ -53,10 +53,19 @@ jobs:
           bash -n openkore/entrypoint.sh
           sh -n fluxcp/docker-entrypoint.sh
 
-      - name: Validate Compose configuration
+      - name: Validate Compose configuration and safety invariants
         run: |
           cp .env.example .env
           docker compose config -q
+          docker compose config --format json | jq -e '
+            .services.fluxcp.depends_on.rathena.condition == "service_healthy"
+            and ((.services.rathena.environment // {}) | has("PACKETVER") | not)
+            and ((.services | has("mariadb")) | not)
+          ' >/dev/null
+          # Compose normalizes away inactive profile metadata in config output,
+          # so assert opt-in profiles directly against the source Compose file.
+          grep -Eq 'profiles:[[:space:]]*\["bot"\]' docker-compose.yml
+          grep -Eq 'profiles:[[:space:]]*\["supervisor"\]' docker-compose.yml
           rm .env
 
       - name: Set up QEMU
