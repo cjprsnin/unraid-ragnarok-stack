@@ -9,6 +9,10 @@ WORKDIR /src
 RUN git clone https://github.com/rathena/rathena.git . \
     && git checkout "${RATHENA_REF}" \
     && git submodule update --init --recursive
+RUN test -s sql-files/main.sql \
+    && test -s sql-files/logs.sql \
+    && test -s sql-files/web.sql \
+    && grep -Eiq "CREATE[[:space:]]+TABLE[[:space:]]+IF[[:space:]]+NOT[[:space:]]+EXISTS" sql-files/web.sql
 RUN ./configure && make server
 
 FROM ubuntu:24.04
