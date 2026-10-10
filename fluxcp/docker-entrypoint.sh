@@ -1,5 +1,6 @@
 #!/usr/bin/env sh
 set -eu
+umask 077
 cd /var/www/html
 
 mkdir -p /var/www/html/config /var/www/html/data
@@ -54,4 +55,5 @@ fi
 
 # Ensure FluxCP can write its data/cache tree when using Unraid bind mounts.
 chown -R www-data:www-data /var/www/html/config /var/www/html/data
+find /var/www/html/config -type f -exec chmod 600 {} \;
 exec "$@"
