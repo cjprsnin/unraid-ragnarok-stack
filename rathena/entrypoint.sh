@@ -26,6 +26,17 @@ fi
 : "${PACKETVER:=20200401}"
 : "${AUTO_IMPORT_SQL:=true}"
 
+# Validate database identifiers before placing them into generated configuration.
+for database_name in "${DB_NAME}" "${LOG_DB_NAME}"; do
+  case "${database_name}" in
+    ""|*[!A-Za-z0-9_]*) echo "ERROR: database names may contain only letters, numbers, and underscores." >&2; exit 64 ;;
+  esac
+done
+if [[ "${DB_NAME}" == "${LOG_DB_NAME}" ]]; then
+  echo "ERROR: DB_NAME and LOG_DB_NAME must be different databases." >&2
+  exit 64
+fi
+
 # A bind-mounted empty conf directory must not erase the upstream configuration.
 if [[ ! -f conf/login_athena.conf || ! -f conf/char_athena.conf || ! -f conf/map_athena.conf ]]; then
   if [[ ! -d /usr/share/rathena-default-conf ]]; then
@@ -80,15 +91,6 @@ map_ip: ${SERVER_IP}
 EOF
 
 # Wait for the existing MariaDB service; do not create or modify databases.
-for database_name in "${DB_NAME}" "${LOG_DB_NAME}"; do
-  case "${database_name}" in
-    ""|*[!A-Za-z0-9_]*) echo "ERROR: database names may contain only letters, numbers, and underscores." >&2; exit 64 ;;
-  esac
-done
-if [[ "${DB_NAME}" == "${LOG_DB_NAME}" ]]; then
-  echo "ERROR: DB_NAME and LOG_DB_NAME must be different databases." >&2
-  exit 64
-fi
 echo "Waiting for MariaDB at ${DB_HOST}:${DB_PORT}..."
 db_ready=false
 for attempt in $(seq 1 60); do
