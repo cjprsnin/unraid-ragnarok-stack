@@ -92,8 +92,12 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+  database-integration:
+    if: ${{ github.ref == 'refs/heads/main' && inputs.confirm_publish == true }}
+    uses: ./.github/workflows/database-integration.yml
+
   publish:
-    needs: validate
+    needs: [validate, database-integration]
     if: ${{ github.ref == 'refs/heads/main' && inputs.confirm_publish == true }}
     runs-on: ubuntu-latest
     strategy:
