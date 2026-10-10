@@ -3,6 +3,7 @@ set -Eeuo pipefail
 umask 077
 
 cd /rathena
+rm -f /tmp/rathena-ready
 
 # Unraid bind mounts are commonly root-owned. Initialize and fix ownership once,
 # then re-exec this script as the unprivileged rAthena account.
@@ -157,5 +158,4 @@ for pid in "${children[@]}"; do
   fi
 done
 
-touch /tmp/rathena-ready
 wait -n "${children[@]}"
