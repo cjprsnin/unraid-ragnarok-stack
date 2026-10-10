@@ -44,6 +44,8 @@ jobs:
         run: |
           db_container="$(docker ps --filter 'ancestor=mariadb:11.8' --format '{{.ID}}' | head -n1)"
           test -n "$db_container"
+          docker network create ragnarok-ci
+          docker network connect --alias mariadb ragnarok-ci "$db_container"
           docker exec -i -e MYSQL_PWD=ci-root-password "$db_container" mariadb -uroot <<'SQL'
           CREATE DATABASE ragnarok;
           CREATE DATABASE ragnarok_logs;
@@ -52,13 +54,13 @@ jobs:
           GRANT ALL PRIVILEGES ON ragnarok_logs.* TO 'ragnarok'@'%';
           FLUSH PRIVILEGES;
           SQL
-          docker run --rm --network host -e MYSQL_PWD=ci-test-password mariadb:11.8 mariadb-admin --silent -h 127.0.0.1 -uragnarok ping
+          docker run --rm --network ragnarok-ci -e MYSQL_PWD=ci-test-password mariadb:11.8 mariadb-admin --silent -h mariadb -uragnarok ping
 
       - name: Exercise rAthena database bootstrap against disposable MariaDB
         run: |
           mkdir -p "$RUNNER_TEMP/rathena-conf" "$RUNNER_TEMP/rathena-save" "$RUNNER_TEMP/rathena-log"
-          docker run -d --name ragnarok-db-integration --network host \
-            -e DB_HOST=127.0.0.1 \
+          docker run -d --name ragnarok-db-integration --network ragnarok-ci \
+            -e DB_HOST=mariadb \
             -e DB_PORT=3306 \
             -e DB_NAME=ragnarok \
             -e LOG_DB_NAME=ragnarok_logs \
@@ -82,8 +84,8 @@ jobs:
           done
           docker logs ragnarok-db-integration | grep -q "Importing rAthena main schema into empty database ragnarok."
           docker logs ragnarok-db-integration | grep -q "Importing rAthena log schema into empty database ragnarok_logs."
-          docker run --rm --network host -e MYSQL_PWD=ci-test-password --entrypoint bash ragnarok-rathena:db-test -lc '
-            main_count=$(mariadb -N -s -h 127.0.0.1 -u ragnarok -D ragnarok -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE()")
+          docker run --rm --network ragnarok-ci -e MYSQL_PWD=ci-test-password --entrypoint bash ragnarok-rathena:db-test -lc '
+            main_count=$(mariadb -N -s -h mariadb -u ragnarok -D ragnarok -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE()")
             log_count=$(mariadb -N -s -h 127.0.0.1 -u ragnarok -D ragnarok_logs -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE()")
             web_count=$(mariadb -N -s -h 127.0.0.1 -u ragnarok -D ragnarok -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = CONVERT(0x6775696c645f656d626c656d73 USING utf8mb4)")
             test "$main_count" -gt 0
@@ -92,6 +94,8 @@ jobs:
             echo "Schema checks passed: main=$main_count logs=$log_count web=$web_count"
           '
 
-      - name: Clean up test container
+      - name: Clean up test containers and network
         if: always()
-        run: docker rm -f ragnarok-db-integration 2>/dev/null || true
+        run: |
+          docker rm -f ragnarok-db-integration 2>/dev/null || true
+          docker network rm ragnarok-ci 2>/dev/null || true
