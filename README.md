@@ -57,7 +57,7 @@ The Ollama supervisor is advisory-only: it reads logs and writes reports; it mus
 ## Important
 
 - Back up your MariaDB databases before importing upstream SQL schemas.
-- The client packet version, client executable, and server configuration must be compatible.
+- The published rAthena image is compiled with `PACKETVER=20200401`. This is a build-time setting, not a runtime `.env` option; changing it requires rebuilding the rAthena image with a matching `PACKETVER` build argument and publishing/deploying that image. The client executable and server configuration must be compatible with that version.
 - FluxCP's displayed game-server addresses use `SERVER_IP`, which must be reachable by game clients and users' browsers; do not set it to the internal Compose hostname `rathena`.
 - Configure FluxCP according to its upstream documentation before exposing it outside your trusted LAN.
 - Do not commit `.env`, credentials, game account passwords, or database dumps.
