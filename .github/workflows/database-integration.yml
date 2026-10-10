@@ -41,16 +41,10 @@ jobs:
         run: docker build --tag ragnarok-rathena:db-test --file rathena/Dockerfile --build-arg RATHENA_REF=d4b8e7b8f16061cc2496d377ac8f777ce72a4f39 --build-arg PACKETVER=20200401 ./rathena
 
       - name: Create disposable test databases and restricted user
-        env:
-          MYSQL_PWD: ci-root-password
         run: |
-          for attempt in $(seq 1 30); do
-            if docker run --rm --network host -e MYSQL_PWD="$MYSQL_PWD" mariadb:11.8 mariadb-admin --silent -h 127.0.0.1 -uroot ping; then
-              break
-            fi
-            sleep 2
-          done
-          docker run --rm --network host -e MYSQL_PWD="$MYSQL_PWD" mariadb:11.8 mariadb -h 127.0.0.1 -uroot <<'SQL'
+          db_container="$(docker ps --filter 'ancestor=mariadb:11.8' --format '{{.ID}}' | head -n1)"
+          test -n "$db_container"
+          docker exec -i -e MYSQL_PWD=ci-root-password "$db_container" mariadb -uroot <<'SQL'
           CREATE DATABASE ragnarok;
           CREATE DATABASE ragnarok_logs;
           CREATE USER 'ragnarok'@'%' IDENTIFIED BY 'ci-test-password';
@@ -58,6 +52,7 @@ jobs:
           GRANT ALL PRIVILEGES ON ragnarok_logs.* TO 'ragnarok'@'%';
           FLUSH PRIVILEGES;
           SQL
+          docker run --rm --network host -e MYSQL_PWD=ci-test-password mariadb:11.8 mariadb-admin --silent -h 127.0.0.1 -uragnarok ping
 
       - name: Exercise rAthena database bootstrap against disposable MariaDB
         run: |
