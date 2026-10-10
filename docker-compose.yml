@@ -42,9 +42,12 @@ services:
       DB_HOST: ${DB_HOST:-ragnarok-db}
       DB_PORT: ${DB_PORT:-3306}
       DB_NAME: ${RAGNAROK_DB_NAME:-ragnarok}
+      LOG_DB_NAME: ${RAGNAROK_LOG_DB_NAME:-ragnarok_logs}
       DB_USER: ${RAGNAROK_DB_USER:-ragnarok}
       DB_PASSWORD: ${RAGNAROK_DB_PASSWORD:?Set RAGNAROK_DB_PASSWORD in .env}
       SERVER_IP: ${SERVER_IP:?Set SERVER_IP in .env}
+      RATHENA_HOST: rathena
+      FLUXCP_PORT: ${FLUXCP_PORT:-8080}
       SITE_TITLE: ${SITE_TITLE:-Local Ragnarok}
       INSTALLER_PASSWORD: ${FLUX_INSTALLER_PASSWORD:?Set FLUX_INSTALLER_PASSWORD in .env}
     ports:
