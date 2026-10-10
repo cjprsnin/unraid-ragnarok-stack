@@ -27,7 +27,7 @@ A Docker Compose starter for running a private rAthena server with FluxCP on Unr
 
 ## Images
 
-Images are intended to be published to GHCR by GitHub Actions. Until a successful workflow run publishes them, use the source-build configuration only if your Docker Buildx version supports it. Do not assume a `:latest` image exists before the workflow succeeds.
+The current GitHub Actions workflow is **validation-only**: it builds the images but does not publish them to GHCR. The Compose file references GHCR tags, so do not deploy the stack until runtime checks pass and a separate, deliberate image-publishing step has populated those tags. This repository does not yet provide a working local-build Compose profile; your current Buildx version may also need updating before source builds will work.
 
 ## Start
 
