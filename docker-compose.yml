@@ -58,7 +58,7 @@ services:
       - ragnarok
     depends_on:
       rathena:
-        condition: service_started
+        condition: service_healthy
 
   openkore:
     image: ghcr.io/cjprsnin/ragnarok-openkore:latest
