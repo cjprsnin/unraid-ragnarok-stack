@@ -13,8 +13,12 @@ WORKDIR /var/www/html
 RUN git config --global --add safe.directory /var/www/html \
     && git clone https://github.com/rathena/FluxCP.git . \
     && git checkout "${FLUXCP_REF}" \
+    && test -s /var/www/html/config/application.php \
+    && test -s /var/www/html/config/servers.php \
     && mkdir -p /usr/share/fluxcp-default-config \
-    && cp -a /var/www/html/config/. /usr/share/fluxcp-default-config/
+    && cp -a /var/www/html/config/. /usr/share/fluxcp-default-config/ \
+    && php -l /usr/share/fluxcp-default-config/application.php \
+    && php -l /usr/share/fluxcp-default-config/servers.php
 COPY docker-entrypoint.sh /usr/local/bin/fluxcp-entrypoint
 RUN chmod +x /usr/local/bin/fluxcp-entrypoint
 EXPOSE 80
