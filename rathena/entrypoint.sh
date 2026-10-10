@@ -88,7 +88,7 @@ fi
 echo "Waiting for MariaDB at ${DB_HOST}:${DB_PORT}..."
 db_ready=false
 for attempt in $(seq 1 60); do
-  if MYSQL_PWD="${DB_PASSWORD}" mariadb-admin ping --silent -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" >/dev/null 2>&1; then
+  if MYSQL_PWD="${DB_PASSWORD}" mariadb-admin --silent -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" ping >/dev/null 2>&1; then
     db_ready=true
     break
   fi
