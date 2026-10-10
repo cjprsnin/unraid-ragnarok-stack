@@ -62,6 +62,13 @@ jobs:
         run: |
           cp .env.example .env
           docker compose config -q
+          docker compose config --format json | jq '{
+            fluxcp_waits_for_healthy_rathena: (.services.fluxcp.depends_on.rathena.condition == "service_healthy"),
+            openkore_is_opt_in: (((.services.openkore.profiles // []) | index("bot")) != null),
+            ollama_supervisor_is_opt_in: (((.services["ollama-supervisor"].profiles // []) | index("supervisor")) != null),
+            packetver_is_build_time_only: (((.services.rathena.environment // {}) | has("PACKETVER")) | not),
+            existing_mariadb_is_not_redefined: ((.services | has("mariadb")) | not)
+          }'
           docker compose config --format json | jq -e '
             .services.fluxcp.depends_on.rathena.condition == "service_healthy"
             and ((.services.openkore.profiles // []) | index("bot") != null)
