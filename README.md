@@ -2,7 +2,7 @@
 
 A Docker Compose starter for running a private rAthena server with FluxCP on Unraid.
 
-> **Status: development / not yet production-ready.** The image build and game-server startup still need end-to-end testing. Do not point this at a production game database until backups and schema-import behavior are verified.
+> **Status: development / not yet production-ready.** The image build and game-server startup still need end-to-end testing. The guarded schema bootstrap only imports into empty databases; still back up your data before use.
 
 ## Design
 
@@ -15,7 +15,7 @@ A Docker Compose starter for running a private rAthena server with FluxCP on Unr
 
 ## Before you start
 
-1. Create a dedicated MariaDB user and the `ragnarok` and `ragnarok_logs` databases. The account should have privileges only on those databases.
+1. Create a dedicated MariaDB user and the `ragnarok` and `ragnarok_logs` databases. The account should have privileges only on those databases. The rAthena entrypoint waits for MariaDB and, by default, imports the upstream `main.sql` and `logs.sql` schemas only when the respective database has zero tables. Set `AUTO_IMPORT_SQL=false` to disable this behavior. Existing non-empty databases are left untouched; back up your data before making changes.
 2. Attach your existing MariaDB container to the `ragnarok` Docker network using alias `ragnarok-db`. Create the network first if needed:
    ```bash
    docker network create ragnarok
