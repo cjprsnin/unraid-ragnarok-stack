@@ -14,7 +14,6 @@ services:
       DB_USER: ${RAGNAROK_DB_USER:-ragnarok}
       DB_PASSWORD: ${RAGNAROK_DB_PASSWORD:?Set RAGNAROK_DB_PASSWORD in .env}
       SERVER_IP: ${SERVER_IP:?Set SERVER_IP in .env}
-      PACKETVER: ${PACKETVER:-20200401}
       AUTO_IMPORT_SQL: ${AUTO_IMPORT_SQL:-true}
     volumes:
       - ${APPDATA_ROOT:-/mnt/user/appdata/ragnarok}/rathena/conf:/rathena/conf
