@@ -1,0 +1,101 @@
+name: Isolated database integration test
+
+on:
+  push:
+    branches: ["main", "master"]
+    paths:
+      - "rathena/**"
+      - ".github/workflows/database-integration.yml"
+      - ".github/workflows/publish-images.yml"
+      - ".github/workflows/manual-publish-images.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ragnarok-db-integration-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  database-integration:
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:11.8
+        env:
+          MARIADB_ROOT_PASSWORD: ci-root-password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build rAthena image (local only)
+        run: docker build --tag ragnarok-rathena:db-test --file rathena/Dockerfile --build-arg RATHENA_REF=d4b8e7b8f16061cc2496d377ac8f777ce72a4f39 --build-arg PACKETVER=20200401 ./rathena
+
+      - name: Create disposable test databases and restricted user
+        env:
+          MYSQL_PWD: ci-root-password
+        run: |
+          for attempt in $(seq 1 30); do
+            if docker run --rm --network host -e MYSQL_PWD="$MYSQL_PWD" mariadb:11.8 mariadb-admin --silent -h 127.0.0.1 -uroot ping; then
+              break
+            fi
+            sleep 2
+          done
+          docker run --rm --network host -e MYSQL_PWD="$MYSQL_PWD" mariadb:11.8 mariadb -h 127.0.0.1 -uroot <<'SQL'
+          CREATE DATABASE ragnarok;
+          CREATE DATABASE ragnarok_logs;
+          CREATE USER 'ragnarok'@'%' IDENTIFIED BY 'ci-test-password';
+          GRANT ALL PRIVILEGES ON ragnarok.* TO 'ragnarok'@'%';
+          GRANT ALL PRIVILEGES ON ragnarok_logs.* TO 'ragnarok'@'%';
+          FLUSH PRIVILEGES;
+          SQL
+
+      - name: Exercise rAthena database bootstrap against disposable MariaDB
+        run: |
+          mkdir -p "$RUNNER_TEMP/rathena-conf" "$RUNNER_TEMP/rathena-save" "$RUNNER_TEMP/rathena-log"
+          docker run -d --name ragnarok-db-integration --network host \
+            -e DB_HOST=127.0.0.1 \
+            -e DB_PORT=3306 \
+            -e DB_NAME=ragnarok \
+            -e LOG_DB_NAME=ragnarok_logs \
+            -e DB_USER=ragnarok \
+            -e DB_PASSWORD=ci-test-password \
+            -e SERVER_IP=127.0.0.1 \
+            -e AUTO_IMPORT_SQL=true \
+            -v "$RUNNER_TEMP/rathena-conf:/rathena/conf" \
+            -v "$RUNNER_TEMP/rathena-save:/rathena/save" \
+            -v "$RUNNER_TEMP/rathena-log:/rathena/log" \
+            ragnarok-rathena:db-test
+          for attempt in $(seq 1 90); do
+            if docker logs ragnarok-db-integration 2>&1 | grep -q "rAthena configuration prepared"; then
+              break
+            fi
+            if [ "$(docker inspect -f '{{.State.Running}}' ragnarok-db-integration)" != "true" ]; then
+              docker logs ragnarok-db-integration
+              exit 1
+            fi
+            sleep 2
+          done
+          docker logs ragnarok-db-integration | grep -q "Importing rAthena main schema into empty database ragnarok."
+          docker logs ragnarok-db-integration | grep -q "Importing rAthena log schema into empty database ragnarok_logs."
+          docker run --rm --network host -e MYSQL_PWD=ci-test-password --entrypoint bash ragnarok-rathena:db-test -lc '
+            main_count=$(mariadb -N -s -h 127.0.0.1 -u ragnarok -D ragnarok -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE()")
+            log_count=$(mariadb -N -s -h 127.0.0.1 -u ragnarok -D ragnarok_logs -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE()")
+            web_count=$(mariadb -N -s -h 127.0.0.1 -u ragnarok -D ragnarok -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name IN (\x27cp_config\x27, \x27cp_loginlog\x27)")
+            test "$main_count" -gt 0
+            test "$log_count" -gt 0
+            test "$web_count" -gt 0
+            echo "Schema checks passed: main=$main_count logs=$log_count web=$web_count"
+          '
+
+      - name: Clean up test container
+        if: always()
+        run: docker rm -f ragnarok-db-integration 2>/dev/null || true
