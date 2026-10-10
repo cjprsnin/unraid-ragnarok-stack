@@ -1,5 +1,5 @@
 FROM php:8.2-apache
-ARG FLUXCP_REF=master
+ARG FLUXCP_REF=98cd4b8fd83228c11b36fb3d097b8e0f7c105a8d
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git unzip libzip-dev libpng-dev libjpeg62-turbo-dev libfreetype6-dev \
