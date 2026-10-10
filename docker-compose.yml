@@ -27,7 +27,7 @@ services:
     networks:
       - ragnarok
     healthcheck:
-      test: ["CMD-SHELL", "test -f /tmp/rathena-ready"]
+      test: ["CMD-SHELL", "for p in 6900 6121 5121; do timeout 2 bash -c \"</dev/tcp/127.0.0.1/$p\" || exit 1; done"]
       interval: 30s
       timeout: 5s
       retries: 5
