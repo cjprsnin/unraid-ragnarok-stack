@@ -14,7 +14,7 @@ RUN ./configure && make server
 FROM ubuntu:24.04
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates gosu libmariadb3 libpcre3 zlib1g libssl3 libxml2 \
+    ca-certificates gosu mariadb-client libmariadb3 libpcre3 zlib1g libssl3 libxml2 \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --system --create-home --home-dir /rathena --shell /usr/sbin/nologin rathena
 WORKDIR /rathena
