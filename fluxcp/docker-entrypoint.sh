@@ -53,6 +53,10 @@ return $servers;
 PHP
 fi
 
+# Fail fast if generated or user-maintained PHP config has a syntax error.
+php -l /var/www/html/config/application.php
+php -l /var/www/html/config/servers.php
+
 # Ensure FluxCP can write its data/cache tree when using Unraid bind mounts.
 chown -R www-data:www-data /var/www/html/config /var/www/html/data
 find /var/www/html/config -type f -exec chmod 600 {} \;
