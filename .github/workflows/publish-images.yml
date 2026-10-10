@@ -10,6 +10,7 @@ on:
       - "supervisor/**"
       - ".github/workflows/publish-images.yml"
       - ".github/workflows/manual-publish-images.yml"
+      - ".github/workflows/database-integration.yml"
       - "docker-compose.yml"
       - ".env.example"
       - "README.md"
