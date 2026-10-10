@@ -104,6 +104,15 @@ if [[ "${db_ready}" != true ]]; then
   exit 1
 fi
 
+# Confirm both pre-created databases are visible to this restricted SQL account.
+visible_databases="$(MYSQL_PWD="${DB_PASSWORD}" mariadb -N -s -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" -e "SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME IN ('${DB_NAME}', '${LOG_DB_NAME}');")"
+for database_name in "${DB_NAME}" "${LOG_DB_NAME}"; do
+  if ! grep -Fxq -- "${database_name}" <<< "${visible_databases}"; then
+    echo "ERROR: database '${database_name}' is missing or inaccessible. Create it and grant the dedicated Ragnarok SQL user access before starting rAthena." >&2
+    exit 1
+  fi
+done
+
 # Bootstrap schemas only when enabled and the target database has no tables.
 # Existing/partially populated databases are never dropped, truncated, or re-imported.
 if [[ "${AUTO_IMPORT_SQL,,}" == "true" ]]; then
