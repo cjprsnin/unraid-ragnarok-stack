@@ -12,10 +12,11 @@ A Docker Compose starter for running a private rAthena server with FluxCP on Unr
 - OpenKore is opt-in with the `bot` profile.
 - The Ollama log-analysis helper is opt-in with the `supervisor` profile and is disabled by default.
 - Persistent data belongs under the configured Unraid appdata directory.
+- FluxCP generates its initial application and database configuration from environment variables on first start; its config files then persist under appdata for manual customization.
 
 ## Before you start
 
-1. Create a dedicated MariaDB user and the `ragnarok` and `ragnarok_logs` databases. The account should have privileges only on those databases. The rAthena entrypoint waits for MariaDB and, by default, imports the upstream `main.sql` and `logs.sql` schemas only when the respective database has zero tables. Set `AUTO_IMPORT_SQL=false` to disable this behavior. Existing non-empty databases are left untouched; back up your data before making changes.
+1. Create a dedicated MariaDB user and the `ragnarok` and `ragnarok_logs` databases. The account should have privileges only on those databases. The rAthena entrypoint waits for MariaDB and, by default, imports the upstream `main.sql` and `logs.sql` schemas only when the respective database has zero tables. It also applies upstream `web.sql`, which uses `CREATE TABLE IF NOT EXISTS` to add missing web tables without dropping existing data. Set `AUTO_IMPORT_SQL=false` to disable all automatic SQL initialization. Back up your data before making changes.
 2. Attach your existing MariaDB container to the `ragnarok` Docker network using alias `ragnarok-db`. Create the network first if needed:
    ```bash
    docker network create ragnarok
