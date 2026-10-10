@@ -12,7 +12,9 @@ WORKDIR /var/www/html
 # are not installed with Composer in the upstream master branch.
 RUN git config --global --add safe.directory /var/www/html \
     && git clone https://github.com/rathena/FluxCP.git . \
-    && git checkout "${FLUXCP_REF}"
+    && git checkout "${FLUXCP_REF}" \
+    && mkdir -p /usr/share/fluxcp-default-config \
+    && cp -a /var/www/html/config/. /usr/share/fluxcp-default-config/
 COPY docker-entrypoint.sh /usr/local/bin/fluxcp-entrypoint
 RUN chmod +x /usr/local/bin/fluxcp-entrypoint
 EXPOSE 80
