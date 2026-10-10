@@ -9,6 +9,11 @@ on:
       - "openkore/**"
       - "supervisor/**"
       - ".github/workflows/publish-images.yml"
+      - ".github/workflows/manual-publish-images.yml"
+      - "docker-compose.yml"
+      - ".env.example"
+      - "README.md"
+      - "unraid/**"
   workflow_dispatch:
 
 permissions:
