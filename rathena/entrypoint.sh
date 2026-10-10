@@ -7,7 +7,7 @@ cd /rathena
 # then re-exec this script as the unprivileged rAthena account.
 if [[ "$(id -u)" -eq 0 ]]; then
   mkdir -p conf save log
-  if [[ ! -f conf/login-server.conf || ! -f conf/char-server.conf || ! -f conf/map-server.conf ]]; then
+  if [[ ! -f conf/login_athena.conf || ! -f conf/char_athena.conf || ! -f conf/map_athena.conf ]]; then
     cp -an /usr/share/rathena-default-conf/. conf/
   fi
   chown -R rathena:rathena conf save log
@@ -24,7 +24,7 @@ fi
 : "${PACKETVER:=20200401}"
 
 # A bind-mounted empty conf directory must not erase the upstream configuration.
-if [[ ! -f conf/login-server.conf || ! -f conf/char-server.conf || ! -f conf/map-server.conf ]]; then
+if [[ ! -f conf/login_athena.conf || ! -f conf/char_athena.conf || ! -f conf/map_athena.conf ]]; then
   if [[ ! -d /usr/share/rathena-default-conf ]]; then
     echo "ERROR: rAthena configuration files are missing and no defaults are available." >&2
     exit 78
@@ -62,6 +62,18 @@ log_db_port: ${DB_PORT}
 log_db_id: ${DB_USER}
 log_db_pw: ${DB_PASSWORD}
 log_db_db: ${LOG_DB_NAME}
+EOF
+
+# Advertise the LAN/public address to game clients. Internal server-to-server
+# communication continues to use the upstream loopback defaults.
+cat > conf/import/char_conf.txt <<EOF
+// Managed by the container entrypoint.
+char_ip: ${SERVER_IP}
+EOF
+
+cat > conf/import/map_conf.txt <<EOF
+// Managed by the container entrypoint.
+map_ip: ${SERVER_IP}
 EOF
 
 echo "rAthena configuration prepared."
