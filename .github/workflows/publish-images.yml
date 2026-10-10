@@ -47,6 +47,12 @@ jobs:
           bash -n openkore/entrypoint.sh
           sh -n fluxcp/docker-entrypoint.sh
 
+      - name: Validate Compose configuration
+        run: |
+          cp .env.example .env
+          docker compose config -q
+          rm .env
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
