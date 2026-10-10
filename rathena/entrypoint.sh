@@ -22,6 +22,7 @@ fi
 : "${DB_PASSWORD:?Set DB_PASSWORD for the dedicated Ragnarok SQL user}"
 : "${SERVER_IP:?Set SERVER_IP to the server LAN address}"
 : "${PACKETVER:=20200401}"
+: "${AUTO_IMPORT_SQL:=true}"
 
 # A bind-mounted empty conf directory must not erase the upstream configuration.
 if [[ ! -f conf/login_athena.conf || ! -f conf/char_athena.conf || ! -f conf/map_athena.conf ]]; then
@@ -75,6 +76,49 @@ cat > conf/import/map_conf.txt <<EOF
 // Managed by the container entrypoint.
 map_ip: ${SERVER_IP}
 EOF
+
+# Wait for the existing MariaDB service; do not create or modify databases.
+case "${DB_NAME}:${LOG_DB_NAME}" in
+  *[!A-Za-z0-9_:]*) echo "ERROR: database names may contain only letters, numbers, and underscores." >&2; exit 64 ;;
+esac
+if [[ "${DB_NAME}" == "${LOG_DB_NAME}" ]]; then
+  echo "ERROR: DB_NAME and LOG_DB_NAME must be different databases." >&2
+  exit 64
+fi
+echo "Waiting for MariaDB at ${DB_HOST}:${DB_PORT}..."
+db_ready=false
+for attempt in $(seq 1 60); do
+  if MYSQL_PWD="${DB_PASSWORD}" mariadb-admin ping --silent -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" >/dev/null 2>&1; then
+    db_ready=true
+    break
+  fi
+  sleep 2
+done
+if [[ "${db_ready}" != true ]]; then
+  echo "ERROR: MariaDB did not become reachable with the configured Ragnarok database account." >&2
+  exit 1
+fi
+
+# Bootstrap schemas only when enabled and the target database has no tables.
+# Existing/partially populated databases are never dropped, truncated, or re-imported.
+if [[ "${AUTO_IMPORT_SQL,,}" == "true" ]]; then
+  main_tables="$(MYSQL_PWD="${DB_PASSWORD}" mariadb -N -s -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" -D "${DB_NAME}" -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE();")"
+  if [[ "${main_tables}" == "0" ]]; then
+    echo "Importing rAthena main schema into empty database ${DB_NAME}."
+    MYSQL_PWD="${DB_PASSWORD}" mariadb -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" < /rathena/sql-files/main.sql
+  else
+    echo "Database ${DB_NAME} already contains ${main_tables} table(s); leaving its schema untouched."
+  fi
+  log_tables="$(MYSQL_PWD="${DB_PASSWORD}" mariadb -N -s -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" -D "${LOG_DB_NAME}" -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE();")"
+  if [[ "${log_tables}" == "0" ]]; then
+    echo "Importing rAthena log schema into empty database ${LOG_DB_NAME}."
+    MYSQL_PWD="${DB_PASSWORD}" mariadb -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${LOG_DB_NAME}" < /rathena/sql-files/logs.sql
+  else
+    echo "Database ${LOG_DB_NAME} already contains ${log_tables} table(s); leaving its schema untouched."
+  fi
+else
+  echo "AUTO_IMPORT_SQL is disabled; skipping automatic schema initialization."
+fi
 
 echo "rAthena configuration prepared."
 echo "Database endpoint: ${DB_HOST}:${DB_PORT}; databases: ${DB_NAME}, ${LOG_DB_NAME}"
