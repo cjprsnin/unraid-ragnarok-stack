@@ -1,5 +1,5 @@
 FROM debian:bookworm-slim
-ARG OPENKORE_REF=master
+ARG OPENKORE_REF=51de1ddfc4449ae5217f6886de702f87ca934030
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates git perl make gcc g++ libssl-dev zlib1g-dev \
