@@ -78,9 +78,11 @@ map_ip: ${SERVER_IP}
 EOF
 
 # Wait for the existing MariaDB service; do not create or modify databases.
-case "${DB_NAME}:${LOG_DB_NAME}" in
-  *[!A-Za-z0-9_:]*) echo "ERROR: database names may contain only letters, numbers, and underscores." >&2; exit 64 ;;
-esac
+for database_name in "${DB_NAME}" "${LOG_DB_NAME}"; do
+  case "${database_name}" in
+    ""|*[!A-Za-z0-9_]*) echo "ERROR: database names may contain only letters, numbers, and underscores." >&2; exit 64 ;;
+  esac
+done
 if [[ "${DB_NAME}" == "${LOG_DB_NAME}" ]]; then
   echo "ERROR: DB_NAME and LOG_DB_NAME must be different databases." >&2
   exit 64
