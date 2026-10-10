@@ -1,5 +1,5 @@
 FROM ubuntu:24.04 AS build
-ARG RATHENA_REF=master
+ARG RATHENA_REF=d4b8e7b8f16061cc2496d377ac8f777ce72a4f39
 ARG PACKETVER=20200401
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
