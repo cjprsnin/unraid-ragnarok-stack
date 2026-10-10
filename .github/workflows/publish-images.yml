@@ -41,6 +41,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Check shell script syntax
+        run: |
+          bash -n rathena/entrypoint.sh
+          bash -n openkore/entrypoint.sh
+          sh -n fluxcp/docker-entrypoint.sh
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
