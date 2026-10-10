@@ -85,7 +85,9 @@ jobs:
           - name: ragnarok-rathena
             context: ./rathena
             dockerfile: ./rathena/Dockerfile
-            build_args: RATHENA_REF=master
+            build_args: |
+              RATHENA_REF=master
+              PACKETVER=20200401
           - name: ragnarok-fluxcp
             context: ./fluxcp
             dockerfile: ./fluxcp/Dockerfile
