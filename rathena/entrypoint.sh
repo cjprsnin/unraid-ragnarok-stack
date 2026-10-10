@@ -25,6 +25,11 @@ fi
 : "${SERVER_IP:?Set SERVER_IP to the server LAN address}"
 : "${AUTO_IMPORT_SQL:=true}"
 
+case "${AUTO_IMPORT_SQL,,}" in
+  true|false) ;;
+  *) echo "ERROR: AUTO_IMPORT_SQL must be true or false (received: ${AUTO_IMPORT_SQL})." >&2; exit 64 ;;
+esac
+
 # Validate database identifiers before placing them into generated configuration.
 for database_name in "${DB_NAME}" "${LOG_DB_NAME}"; do
   case "${database_name}" in
