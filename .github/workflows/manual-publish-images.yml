@@ -79,9 +79,18 @@ jobs:
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
-          push: false
           platforms: linux/amd64
           build-args: ${{ matrix.build_args }}
+          tags: ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}:${{ github.sha }}
+          outputs: type=docker,dest=/tmp/${{ matrix.name }}.tar
+
+      - name: Upload validated image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}-image
+          path: /tmp/${{ matrix.name }}.tar
+          if-no-files-found: error
+          retention-days: 1
 
   publish:
     needs: validate
@@ -113,11 +122,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+      - name: Download validated image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.name }}-image
+          path: /tmp/validated-image
 
-      - name: Set up Buildx
-        uses: docker/setup-buildx-action@v3
+      - name: Load validated image
+        run: docker load --input "/tmp/validated-image/${{ matrix.name }}.tar"
+
+      - name: Tag validated image for latest
+        run: |
+          docker tag ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}:${{ github.sha }} ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}:latest
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -127,13 +143,6 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish validated image
-        uses: docker/build-push-action@v6
-        with:
-          context: ${{ matrix.context }}
-          file: ${{ matrix.dockerfile }}
-          push: true
-          platforms: linux/amd64
-          build-args: ${{ matrix.build_args }}
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}:latest
-            ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}:${{ github.sha }}
+        run: |
+          docker push ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}:${{ github.sha }}
+          docker push ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}:latest
