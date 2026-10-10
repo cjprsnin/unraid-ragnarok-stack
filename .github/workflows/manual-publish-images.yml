@@ -29,16 +29,16 @@ jobs:
             context: ./rathena
             dockerfile: ./rathena/Dockerfile
             build_args: |
-              RATHENA_REF=master
+              RATHENA_REF=d4b8e7b8f16061cc2496d377ac8f777ce72a4f39
               PACKETVER=20200401
           - name: ragnarok-fluxcp
             context: ./fluxcp
             dockerfile: ./fluxcp/Dockerfile
-            build_args: FLUXCP_REF=master
+            build_args: FLUXCP_REF=98cd4b8fd83228c11b36fb3d097b8e0f7c105a8d
           - name: ragnarok-openkore
             context: ./openkore
             dockerfile: ./openkore/Dockerfile
-            build_args: OPENKORE_REF=master
+            build_args: OPENKORE_REF=51de1ddfc4449ae5217f6886de702f87ca934030
           - name: ragnarok-ollama-supervisor
             context: ./supervisor
             dockerfile: ./supervisor/Dockerfile
@@ -104,16 +104,16 @@ jobs:
             context: ./rathena
             dockerfile: ./rathena/Dockerfile
             build_args: |
-              RATHENA_REF=master
+              RATHENA_REF=d4b8e7b8f16061cc2496d377ac8f777ce72a4f39
               PACKETVER=20200401
           - name: ragnarok-fluxcp
             context: ./fluxcp
             dockerfile: ./fluxcp/Dockerfile
-            build_args: FLUXCP_REF=master
+            build_args: FLUXCP_REF=98cd4b8fd83228c11b36fb3d097b8e0f7c105a8d
           - name: ragnarok-openkore
             context: ./openkore
             dockerfile: ./openkore/Dockerfile
-            build_args: OPENKORE_REF=master
+            build_args: OPENKORE_REF=51de1ddfc4449ae5217f6886de702f87ca934030
           - name: ragnarok-ollama-supervisor
             context: ./supervisor
             dockerfile: ./supervisor/Dockerfile
