@@ -82,7 +82,24 @@ if (!$markers && $existingFluxTables > 0) {
     exit(0);
 }
 
+$itemShopSchemas = glob(FLUX_DATA_DIR . '/schemas/charmapdb/cp_itemshop.*.sql') ?: array();
+if (!$itemShopSchemas) {
+    throw new RuntimeException('Upstream cp_itemshop schema files are missing from the persistent data volume.');
+}
+
 $installer = Flux_Installer::getInstance();
+if (!$installer->servers) {
+    throw new RuntimeException('No FluxCP server groups were loaded from the servers configuration.');
+}
+$loginSchemaCount = 0;
+$charMapSchemaCount = 0;
+foreach ($installer->servers as $mainServer) {
+    $loginSchemaCount += count($mainServer->schemas);
+    foreach ($mainServer->charMapServers as $charMapServer) {
+        $charMapSchemaCount += count($charMapServer->schemas);
+    }
+}
+fwrite(STDOUT, "FluxCP schema updater discovered login schemas=$loginSchemaCount and char/map schemas=$charMapSchemaCount.\\n");
 $installer->updateAll();
 
 if ($installer->updateNeeded()) {
