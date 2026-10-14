@@ -6,8 +6,8 @@ A Docker Compose starter for running a private rAthena server with FluxCP on Unr
 
 ## Design
 
-- Uses an existing MariaDB container; this project does not deploy a second database.
-- MariaDB must be attached to the Compose network with alias `ragnarok-db`.
+- Deploys its own MariaDB service on the private Compose network; no pre-existing database container or manual network connection is required.
+- MariaDB creates the two Ragnarok databases and a dedicated least-scope SQL user on first initialization. The data directory is persistent.
 - rAthena and FluxCP are the default services.
 - OpenKore is opt-in with the `bot` profile.
 - The Ollama log-analysis helper is opt-in with the `supervisor` profile and is disabled by default.
@@ -35,11 +35,11 @@ After the images have been built and published and the Compose file is configure
 
 ```bash
 docker compose pull
-docker compose up -d rathena
-docker compose logs -f rathena
+docker compose up -d database rathena
+docker compose logs -f database rathena
 ```
 
-Start FluxCP only after rAthena's database setup and configuration have been verified:
+FluxCP waits for rAthena to report healthy:
 
 ```bash
 docker compose up -d fluxcp
@@ -56,6 +56,8 @@ The Ollama supervisor is advisory-only: it reads logs and writes reports; it mus
 
 ## Important
 
+- The included MariaDB service stores its data under `${APPDATA_ROOT}/database/data`. Do not remove this directory when upgrading. The root and game-account credentials are applied at first initialization; changing `.env` later does not rotate passwords inside an existing database volume.
+- `docker compose down` preserves database files. `docker compose down -v` is not a reset for this bind-mounted data and does not erase it. To intentionally reset a disposable installation, stop the stack and remove its database data directory only after confirming the path and backups.
 - Back up your MariaDB databases before importing upstream SQL schemas.
 - The published rAthena image is compiled with `PACKETVER=20200401`. This is a build-time setting, not a runtime `.env` option; changing it requires rebuilding the rAthena image with a matching `PACKETVER` build argument and publishing/deploying that image. The client executable and server configuration must be compatible with that version.
 - FluxCP's displayed game-server addresses use `SERVER_IP`, which must be reachable by game clients and users' browsers; do not set it to the internal Compose hostname `rathena`.
