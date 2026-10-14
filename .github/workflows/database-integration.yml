@@ -113,7 +113,9 @@ jobs:
           test "$item_count" -gt 20000
           test "$red_potion" -eq 1
           item2_count="$(docker exec -e MYSQL_PWD=ci-test-password ragnarok-db-integration mariadb -N -s -h mariadb -uragnarok -D ragnarok -e 'SELECT COUNT(*) FROM item_db2_re')"
-          echo "item_db2_re rows: $item2_count"
+          mob_count="$(docker exec -e MYSQL_PWD=ci-test-password ragnarok-db-integration mariadb -N -s -h mariadb -uragnarok -D ragnarok -e 'SELECT COUNT(*) FROM mob_db_re')"
+          echo "item_db2_re rows: $item2_count; mob_db_re rows: $mob_count"
+          test "$mob_count" -gt 1000
 
       - name: Start FluxCP and verify item/account pages
         run: |
@@ -147,7 +149,7 @@ jobs:
           docker restart ragnarok-db-integration >/dev/null
           ready=false
           for attempt in $(seq 1 60); do
-            if docker logs ragnarok-db-integration 2>&1 | grep -q 'Renewal item data migration already recorded'; then ready=true; break; fi
+            if docker logs ragnarok-db-integration 2>&1 | grep -q 'Renewal item/monster migration already recorded'; then ready=true; break; fi
             if [ "$(docker inspect -f '{{.State.Running}}' ragnarok-db-integration)" != true ]; then docker logs ragnarok-db-integration; exit 1; fi
             sleep 2
           done
