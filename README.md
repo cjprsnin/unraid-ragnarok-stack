@@ -2,7 +2,7 @@
 
 A Docker Compose starter for running a private rAthena server with FluxCP on Unraid.
 
-> **Status: development / not yet production-ready.** The image build and game-server startup still need end-to-end testing. The guarded schema bootstrap only imports into empty databases; still back up your data before use.
+> **Status: development / not yet production-ready.** CI now validates Compose/XML, checks the packaged files stay synchronized, and exercises fresh MariaDB database/user initialization. A full clean-stack startup and FluxCP item-page validation still need end-to-end testing. The guarded schema bootstrap only imports into empty databases; still back up your data before use.
 
 ## Design
 
