@@ -15,8 +15,10 @@ RUN git config --global --add safe.directory /var/www/html \
     && git checkout "${FLUXCP_REF}" \
     && test -s /var/www/html/config/application.php \
     && test -s /var/www/html/config/servers.php \
-    && mkdir -p /usr/share/fluxcp-default-config \
+    && test -d /var/www/html/data/schemas \
+    && mkdir -p /usr/share/fluxcp-default-config /usr/share/fluxcp-default-data \
     && cp -a /var/www/html/config/. /usr/share/fluxcp-default-config/ \
+    && cp -a /var/www/html/data/schemas /usr/share/fluxcp-default-data/schemas \
     && php -l /usr/share/fluxcp-default-config/application.php \
     && php -l /usr/share/fluxcp-default-config/servers.php
 COPY docker-entrypoint.sh /usr/local/bin/fluxcp-entrypoint
