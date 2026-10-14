@@ -21,7 +21,7 @@ RUN git config --global --add safe.directory /var/www/html \
     && php -l /usr/share/fluxcp-default-config/servers.php
 COPY docker-entrypoint.sh /usr/local/bin/fluxcp-entrypoint
 COPY bootstrap-schemas.php /usr/local/bin/fluxcp-bootstrap-schemas.php
-RUN chmod +x /usr/local/bin/fluxcp-entrypoint
+RUN chmod +x /usr/local/bin/fluxcp-entrypoint && php -l /usr/local/bin/fluxcp-bootstrap-schemas.php
 EXPOSE 80
 ENTRYPOINT ["/usr/local/bin/fluxcp-entrypoint"]
 CMD ["apache2-foreground"]
