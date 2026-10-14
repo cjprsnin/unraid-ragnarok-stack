@@ -1,0 +1,127 @@
+name: ragnarok
+
+services:
+  database:
+    image: mariadb:11.8
+    container_name: ragnarok-database
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:?Set MARIADB_ROOT_PASSWORD in .env}
+      RAGNAROK_DB_NAME: ${RAGNAROK_DB_NAME:-ragnarok}
+      RAGNAROK_LOG_DB_NAME: ${RAGNAROK_LOG_DB_NAME:-ragnarok_logs}
+      RAGNAROK_DB_USER: ${RAGNAROK_DB_USER:-ragnarok}
+      RAGNAROK_DB_PASSWORD: ${RAGNAROK_DB_PASSWORD:?Set RAGNAROK_DB_PASSWORD in .env}
+    volumes:
+      - ${APPDATA_ROOT:-/mnt/user/appdata/ragnarok}/database/data:/var/lib/mysql
+      - ./database/init/01-create-ragnarok-databases.sh:/docker-entrypoint-initdb.d/01-create-ragnarok-databases.sh:ro
+    networks:
+      ragnarok:
+        aliases:
+          - ragnarok-db
+    healthcheck:
+      test: ["CMD-SHELL", "mariadb-admin ping -h 127.0.0.1 -uroot -p\"$${MARIADB_ROOT_PASSWORD}\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  rathena:
+    image: ghcr.io/cjprsnin/ragnarok-rathena:latest
+    container_name: ragnarok-rathena
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DB_HOST: ${DB_HOST:-ragnarok-db}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_NAME: ${RAGNAROK_DB_NAME:-ragnarok}
+      LOG_DB_NAME: ${RAGNAROK_LOG_DB_NAME:-ragnarok_logs}
+      DB_USER: ${RAGNAROK_DB_USER:-ragnarok}
+      DB_PASSWORD: ${RAGNAROK_DB_PASSWORD:?Set RAGNAROK_DB_PASSWORD in .env}
+      SERVER_IP: ${SERVER_IP:?Set SERVER_IP in .env}
+      AUTO_IMPORT_SQL: ${AUTO_IMPORT_SQL:-true}
+    volumes:
+      - ${APPDATA_ROOT:-/mnt/user/appdata/ragnarok}/rathena/conf:/rathena/conf
+      - ${APPDATA_ROOT:-/mnt/user/appdata/ragnarok}/rathena/save:/rathena/save
+      - ${APPDATA_ROOT:-/mnt/user/appdata/ragnarok}/rathena/log:/rathena/log
+    ports:
+      - "6900:6900/tcp"
+      - "6121:6121/tcp"
+      - "5121:5121/tcp"
+    networks:
+      - ragnarok
+    depends_on:
+      database:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "for p in 6900 6121 5121; do timeout 2 bash -c \"</dev/tcp/127.0.0.1/$$p\" || exit 1; done"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+
+  fluxcp:
+    image: ghcr.io/cjprsnin/ragnarok-fluxcp:latest
+    container_name: ragnarok-fluxcp
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DB_HOST: ${DB_HOST:-ragnarok-db}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_NAME: ${RAGNAROK_DB_NAME:-ragnarok}
+      LOG_DB_NAME: ${RAGNAROK_LOG_DB_NAME:-ragnarok_logs}
+      DB_USER: ${RAGNAROK_DB_USER:-ragnarok}
+      DB_PASSWORD: ${RAGNAROK_DB_PASSWORD:?Set RAGNAROK_DB_PASSWORD in .env}
+      SERVER_IP: ${SERVER_IP:?Set SERVER_IP in .env}
+      RATHENA_HOST: ${SERVER_IP:?Set SERVER_IP in .env}
+      FLUXCP_PORT: ${FLUXCP_PORT:-8080}
+      SITE_TITLE: ${SITE_TITLE:-Local Ragnarok}
+      INSTALLER_PASSWORD: ${FLUX_INSTALLER_PASSWORD:?Set FLUX_INSTALLER_PASSWORD in .env}
+    ports:
+      - "${FLUXCP_PORT:-8080}:80/tcp"
+    volumes:
+      - ${APPDATA_ROOT:-/mnt/user/appdata/ragnarok}/fluxcp/config:/var/www/html/config
+      - ${APPDATA_ROOT:-/mnt/user/appdata/ragnarok}/fluxcp/data:/var/www/html/data
+    networks:
+      - ragnarok
+    depends_on:
+      rathena:
+        condition: service_healthy
+
+  openkore:
+    image: ghcr.io/cjprsnin/ragnarok-openkore:latest
+    container_name: ragnarok-openkore
+    profiles: ["bot"]
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      RO_SERVER_IP: ${SERVER_IP:?Set SERVER_IP in .env}
+      RO_USER: ${RO_USER:-}
+      RO_PASS: ${RO_PASS:-}
+    volumes:
+      - ${APPDATA_ROOT:-/mnt/user/appdata/ragnarok}/openkore/control:/opt/openkore/control
+    networks:
+      - ragnarok
+    depends_on:
+      - rathena
+
+  ollama-supervisor:
+    image: ghcr.io/cjprsnin/ragnarok-ollama-supervisor:latest
+    container_name: ragnarok-ollama-supervisor
+    profiles: ["supervisor"]
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      OLLAMA_URL: ${OLLAMA_URL:-http://YOUR_OLLAMA_HOST:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:4b}
+      LOG_DIR: /logs
+      REPORT_DIR: /reports
+    volumes:
+      - ${APPDATA_ROOT:-/mnt/user/appdata/ragnarok}/rathena/log:/logs:ro
+      - ${APPDATA_ROOT:-/mnt/user/appdata/ragnarok}/supervisor/reports:/reports
+    networks:
+      - ragnarok
+
+networks:
+  ragnarok:
+    name: ragnarok
+    driver: bridge
