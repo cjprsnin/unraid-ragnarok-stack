@@ -17,7 +17,7 @@ A Docker Compose starter for running a private rAthena server with FluxCP on Unr
 ## Before you start
 
 1. Copy `.env.example` to `.env`.
-2. Set unique strong values for `MARIADB_ROOT_PASSWORD`, `RAGNAROK_DB_PASSWORD`, and `FLUX_INSTALLER_PASSWORD`. Set `SERVER_IP` to the address game clients can reach. Keep secrets out of version control.
+2. Set unique strong values for `MARIADB_ROOT_PASSWORD`, `RAGNAROK_DB_PASSWORD`, and `FLUX_INSTALLER_PASSWORD`. For `RAGNAROK_DB_PASSWORD`, use only letters, numbers, and `_!@#%+=.,:-` (the initializer validates this because the value is embedded in SQL). Set `SERVER_IP` to the address game clients can reach. Keep secrets out of version control.
 3. Run `docker compose config -q` to validate the configuration.
 4. Start MariaDB and rAthena:
 
