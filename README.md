@@ -16,14 +16,26 @@ A Docker Compose starter for running a private rAthena server with FluxCP on Unr
 
 ## Before you start
 
-1. Create a dedicated MariaDB user and the `ragnarok` and `ragnarok_logs` databases. The account should have privileges only on those databases. The rAthena entrypoint waits for MariaDB and, by default, imports the upstream `main.sql` and `logs.sql` schemas only when the respective database has zero tables. It also applies upstream `web.sql`, which uses `CREATE TABLE IF NOT EXISTS` to add missing web tables without dropping existing data. Set `AUTO_IMPORT_SQL=false` to disable all automatic SQL initialization. Back up your data before making changes.
-2. Attach your existing MariaDB container to the `ragnarok` Docker network using alias `ragnarok-db`. Create the network first if needed:
+1. Copy `.env.example` to `.env`.
+2. Set unique strong values for `MARIADB_ROOT_PASSWORD`, `RAGNAROK_DB_PASSWORD`, and `FLUX_INSTALLER_PASSWORD`. Set `SERVER_IP` to the address game clients can reach. Keep secrets out of version control.
+3. Run `docker compose config -q` to validate the configuration.
+4. Start MariaDB and rAthena:
+
    ```bash
-   docker network create ragnarok
-   docker network connect --alias ragnarok-db ragnarok YOUR_MARIADB_CONTAINER_NAME
+   docker compose pull
+   docker compose up -d database rathena
+   docker compose logs -f database rathena
    ```
-3. Copy `.env.example` to `.env` and set unique strong passwords, your server LAN IP, and persistent paths.
-4. Run `docker compose config -q` before starting anything.
+
+5. Once rAthena is healthy, start FluxCP:
+
+   ```bash
+   docker compose up -d fluxcp
+   ```
+
+On first startup, MariaDB creates the `ragnarok` and `ragnarok_logs` databases and a dedicated SQL account. The rAthena entrypoint imports `main.sql` and `logs.sql` only when the respective databases contain zero tables, and applies upstream `web.sql` using `CREATE TABLE IF NOT EXISTS`. Existing or partially populated databases are not automatically reset. Set `AUTO_IMPORT_SQL=false` to disable rAthena's automatic schema initialization.
+
+The included database is isolated on the Compose network and does not require a pre-existing MariaDB container or manually created Docker network.
 
 ## Images
 
@@ -58,7 +70,8 @@ The Ollama supervisor is advisory-only: it reads logs and writes reports; it mus
 
 - The included MariaDB service stores its data under `${APPDATA_ROOT}/database/data`. Do not remove this directory when upgrading. The root and game-account credentials are applied at first initialization; changing `.env` later does not rotate passwords inside an existing database volume.
 - `docker compose down` preserves database files. `docker compose down -v` is not a reset for this bind-mounted data and does not erase it. To intentionally reset a disposable installation, stop the stack and remove its database data directory only after confirming the path and backups.
-- Back up your MariaDB databases before importing upstream SQL schemas.
+- MariaDB data persists under `${APPDATA_ROOT}/database/data`. Root and game-account credentials are applied at first initialization; changing `.env` later does not rotate passwords in an existing database volume. Back up databases before schema changes.
+- `docker compose down` does not delete the bind-mounted database files. For an intentional disposable reset, stop the stack and remove only the verified database data directory after confirming backups.
 - The published rAthena image is compiled with `PACKETVER=20200401`. This is a build-time setting, not a runtime `.env` option; changing it requires rebuilding the rAthena image with a matching `PACKETVER` build argument and publishing/deploying that image. The client executable and server configuration must be compatible with that version.
 - FluxCP's displayed game-server addresses use `SERVER_IP`, which must be reachable by game clients and users' browsers; do not set it to the internal Compose hostname `rathena`.
 - Configure FluxCP according to its upstream documentation before exposing it outside your trusted LAN.
