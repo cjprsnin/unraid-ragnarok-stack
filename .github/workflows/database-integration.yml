@@ -1,10 +1,14 @@
-name: Isolated database integration test
+name: Clean-stack integration test
 
 on:
   pull_request:
     paths:
       - "rathena/**"
       - "fluxcp/**"
+      - "docker-compose.yml"
+      - "docker-compose.ci.yml"
+      - "database/**"
+      - "tests/**"
       - ".github/workflows/database-integration.yml"
       - ".github/workflows/publish-images.yml"
       - ".github/workflows/manual-publish-images.yml"
@@ -13,6 +17,10 @@ on:
     paths:
       - "rathena/**"
       - "fluxcp/**"
+      - "docker-compose.yml"
+      - "docker-compose.ci.yml"
+      - "database/**"
+      - "tests/**"
       - ".github/workflows/database-integration.yml"
       - ".github/workflows/publish-images.yml"
       - ".github/workflows/manual-publish-images.yml"
@@ -23,161 +31,22 @@ permissions:
   contents: read
 
 concurrency:
-  group: ragnarok-db-integration-${{ github.ref }}
+  group: ragnarok-clean-integration-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  database-integration:
+  clean-stack-integration:
     runs-on: ubuntu-latest
-    services:
-      mariadb:
-        image: mariadb:11.8
-        env:
-          MARIADB_ROOT_PASSWORD: ci-root-password
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd="healthcheck.sh --connect --innodb_initialized"
-          --health-interval=5s
-          --health-timeout=5s
-          --health-retries=20
+    timeout-minutes: 45
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build rAthena image (local only)
-        run: docker build --tag ragnarok-rathena:db-test --file rathena/Dockerfile --build-arg RATHENA_REF=d4b8e7b8f16061cc2496d377ac8f777ce72a4f39 --build-arg PACKETVER=20200401 ./rathena
-
-      - name: Build FluxCP image (local only)
-        run: docker build --tag ragnarok-fluxcp:db-test --file fluxcp/Dockerfile --build-arg FLUXCP_REF=98cd4b8fd83228c11b36fb3d097b8e0f7c105a8d ./fluxcp
-
-      - name: Create disposable test databases and restricted user
+      - name: Validate shell syntax
         run: |
-          db_container="$(docker ps --filter 'ancestor=mariadb:11.8' --format '{{.ID}}' | head -n1)"
-          test -n "$db_container"
-          docker network create ragnarok-ci
-          docker network connect --alias mariadb ragnarok-ci "$db_container"
-          docker exec -i -e MYSQL_PWD=ci-root-password "$db_container" mariadb -uroot <<'SQL'
-          CREATE DATABASE ragnarok;
-          CREATE DATABASE ragnarok_logs;
-          CREATE USER 'ragnarok'@'%' IDENTIFIED BY 'ci-test-password';
-          GRANT ALL PRIVILEGES ON ragnarok.* TO 'ragnarok'@'%';
-          GRANT ALL PRIVILEGES ON ragnarok_logs.* TO 'ragnarok'@'%';
-          FLUSH PRIVILEGES;
-          SQL
-          docker run --rm --network ragnarok-ci -e MYSQL_PWD=ci-test-password mariadb:11.8 mariadb-admin --silent -h mariadb -uragnarok ping
+          bash -n rathena/entrypoint.sh
+          sh -n fluxcp/docker-entrypoint.sh
+          bash -n tests/integration.sh
 
-      - name: Exercise rAthena database bootstrap against disposable MariaDB
-        run: |
-          mkdir -p "$RUNNER_TEMP/rathena-conf" "$RUNNER_TEMP/rathena-save" "$RUNNER_TEMP/rathena-log"
-          docker run -d --name ragnarok-db-integration --network ragnarok-ci \
-            -e DB_HOST=mariadb \
-            -e DB_PORT=3306 \
-            -e DB_NAME=ragnarok \
-            -e LOG_DB_NAME=ragnarok_logs \
-            -e DB_USER=ragnarok \
-            -e DB_PASSWORD=ci-test-password \
-            -e SERVER_IP=127.0.0.1 \
-            -e AUTO_IMPORT_SQL=true \
-            -v "$RUNNER_TEMP/rathena-conf:/rathena/conf" \
-            -v "$RUNNER_TEMP/rathena-save:/rathena/save" \
-            -v "$RUNNER_TEMP/rathena-log:/rathena/log" \
-            ragnarok-rathena:db-test
-          for attempt in $(seq 1 90); do
-            if docker logs ragnarok-db-integration 2>&1 | grep -q "rAthena configuration prepared"; then
-              break
-            fi
-            if [ "$(docker inspect -f '{{.State.Running}}' ragnarok-db-integration)" != "true" ]; then
-              docker logs ragnarok-db-integration
-              exit 1
-            fi
-            sleep 2
-          done
-          docker logs ragnarok-db-integration | grep -q "Importing rAthena main schema into empty database ragnarok."
-          docker logs ragnarok-db-integration | grep -q "Importing rAthena log schema into empty database ragnarok_logs."
-          server_ready=false
-          for attempt in $(seq 1 60); do
-            if docker exec ragnarok-db-integration bash -lc 'for p in 6900 6121 5121; do timeout 2 bash -c "</dev/tcp/127.0.0.1/$p" || exit 1; done'; then
-              server_ready=true
-              break
-            fi
-            if [ "$(docker inspect -f '{{.State.Running}}' ragnarok-db-integration)" != true ]; then
-              docker logs ragnarok-db-integration
-              exit 1
-            fi
-            sleep 2
-          done
-          if [ "$server_ready" != true ]; then docker logs ragnarok-db-integration; echo "rAthena ports never became ready"; exit 1; fi
-          docker run --rm --network ragnarok-ci -e MYSQL_PWD=ci-test-password --entrypoint bash ragnarok-rathena:db-test -lc '
-            main_count=$(mariadb -N -s -h mariadb -u ragnarok -D ragnarok -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE()")
-            log_count=$(mariadb -N -s -h mariadb -u ragnarok -D ragnarok_logs -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE()")
-            web_count=$(mariadb -N -s -h mariadb -u ragnarok -D ragnarok -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = CONVERT(0x6775696c645f656d626c656d73 USING utf8mb4)")
-            test "$main_count" -gt 0
-            test "$log_count" -gt 0
-            test "$web_count" -gt 0
-            echo "Schema checks passed: main=$main_count logs=$log_count web=$web_count"
-          '
-
-      - name: Verify renewal item data is populated
-        run: |
-          item_count="$(docker exec -e MYSQL_PWD=ci-test-password ragnarok-db-integration mariadb -N -s -h mariadb -uragnarok -D ragnarok -e 'SELECT COUNT(*) FROM item_db_re')"
-          red_potion="$(docker exec -e MYSQL_PWD=ci-test-password ragnarok-db-integration mariadb -N -s -h mariadb -uragnarok -D ragnarok -e 'SELECT COUNT(*) FROM item_db_re WHERE id=501 AND name_english="Red Potion"')"
-          echo "item_db_re rows: $item_count; Red Potion rows: $red_potion"
-          test "$item_count" -gt 20000
-          test "$red_potion" -eq 1
-          item2_count="$(docker exec -e MYSQL_PWD=ci-test-password ragnarok-db-integration mariadb -N -s -h mariadb -uragnarok -D ragnarok -e 'SELECT COUNT(*) FROM item_db2_re')"
-          mob_count="$(docker exec -e MYSQL_PWD=ci-test-password ragnarok-db-integration mariadb -N -s -h mariadb -uragnarok -D ragnarok -e 'SELECT COUNT(*) FROM mob_db_re')"
-          echo "item_db2_re rows: $item2_count; mob_db_re rows: $mob_count"
-          test "$mob_count" -gt 1000
-          migration_count="$(docker exec -e MYSQL_PWD=ci-test-password ragnarok-db-integration mariadb -N -s -h mariadb -uragnarok -D ragnarok -e "SELECT COUNT(*) FROM schema_migrations WHERE name='renewal_item_mob_data_v1'")"
-          test "$migration_count" -eq 1
-
-      - name: Start FluxCP and verify item/account pages
-        run: |
-          mkdir -p "$RUNNER_TEMP/fluxcp-config" "$RUNNER_TEMP/fluxcp-data"
-          docker run -d --name ragnarok-fluxcp-integration --network ragnarok-ci -p 8088:80 \
-            -e DB_HOST=mariadb -e DB_PORT=3306 -e DB_NAME=ragnarok -e LOG_DB_NAME=ragnarok_logs \
-            -e DB_USER=ragnarok -e DB_PASSWORD=ci-test-password -e SERVER_IP=127.0.0.1 \
-            -e RATHENA_HOST=ragnarok-db-integration -e FLUXCP_PORT=8088 \
-            -e SITE_TITLE='Ragnarok CI' -e INSTALLER_PASSWORD=ci-installer-password \
-            -v "$RUNNER_TEMP/fluxcp-config:/var/www/html/config" \
-            -v "$RUNNER_TEMP/fluxcp-data:/var/www/html/data" \
-            ragnarok-fluxcp:db-test
-          ready=false
-          for attempt in $(seq 1 60); do
-            if curl -fsS http://127.0.0.1:8088/ >/dev/null; then ready=true; break; fi
-            if [ "$(docker inspect -f '{{.State.Running}}' ragnarok-fluxcp-integration)" != true ]; then
-              docker logs ragnarok-fluxcp-integration
-              exit 1
-            fi
-            sleep 2
-          done
-          if [ "$ready" != true ]; then docker logs ragnarok-fluxcp-integration; exit 1; fi
-          curl -fsS 'http://127.0.0.1:8088/?module=item&action=view&id=501' | grep -qi 'Red Potion'
-          curl -fsS 'http://127.0.0.1:8088/?module=item&action=index&name=Red' | grep -qi 'Red Potion'
-          curl -fsS 'http://127.0.0.1:8088/?module=account&action=create' >/dev/null
-          echo "FluxCP item view, item search, and account-create page passed."
-
-      - name: Verify item data survives rAthena restart
-        run: |
-          before="$(docker exec -e MYSQL_PWD=ci-test-password ragnarok-db-integration mariadb -N -s -h mariadb -uragnarok -D ragnarok -e 'SELECT COUNT(*) FROM item_db_re')"
-          docker restart ragnarok-db-integration >/dev/null
-          ready=false
-          for attempt in $(seq 1 60); do
-            if docker logs ragnarok-db-integration 2>&1 | grep -q 'Renewal item/monster migration already recorded'; then ready=true; break; fi
-            if [ "$(docker inspect -f '{{.State.Running}}' ragnarok-db-integration)" != true ]; then docker logs ragnarok-db-integration; exit 1; fi
-            sleep 2
-          done
-          test "$ready" = true
-          after="$(docker exec -e MYSQL_PWD=ci-test-password ragnarok-db-integration mariadb -N -s -h mariadb -uragnarok -D ragnarok -e 'SELECT COUNT(*) FROM item_db_re')"
-          test "$before" = "$after"
-          test "$after" -gt 20000
-          migration_count="$(docker exec -e MYSQL_PWD=ci-test-password ragnarok-db-integration mariadb -N -s -h mariadb -uragnarok -D ragnarok -e "SELECT COUNT(*) FROM schema_migrations WHERE name='renewal_item_mob_data_v1'")"
-          test "$migration_count" -eq 1
-          echo "Item rows preserved across rAthena restart: $after; migration ledger count: $migration_count"
-
-      - name: Clean up test containers and network
-        if: always()
-        run: |
-          docker rm -f ragnarok-db-integration ragnarok-fluxcp-integration 2>/dev/null || true
-          docker network rm ragnarok-ci 2>/dev/null || true
+      - name: Build images and validate a clean Compose install
+        run: bash tests/integration.sh
