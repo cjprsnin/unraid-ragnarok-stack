@@ -129,6 +129,8 @@ jobs:
           mob_count="$(docker exec -e MYSQL_PWD=ci-test-password ragnarok-db-integration mariadb -N -s -h mariadb -uragnarok -D ragnarok -e 'SELECT COUNT(*) FROM mob_db_re')"
           echo "item_db2_re rows: $item2_count; mob_db_re rows: $mob_count"
           test "$mob_count" -gt 1000
+          migration_count="$(docker exec -e MYSQL_PWD=ci-test-password ragnarok-db-integration mariadb -N -s -h mariadb -uragnarok -D ragnarok -e "SELECT COUNT(*) FROM schema_migrations WHERE name='renewal_item_mob_data_v1'")"
+          test "$migration_count" -eq 1
 
       - name: Start FluxCP and verify item/account pages
         run: |
@@ -170,7 +172,9 @@ jobs:
           after="$(docker exec -e MYSQL_PWD=ci-test-password ragnarok-db-integration mariadb -N -s -h mariadb -uragnarok -D ragnarok -e 'SELECT COUNT(*) FROM item_db_re')"
           test "$before" = "$after"
           test "$after" -gt 20000
-          echo "Item rows preserved across rAthena restart: $after"
+          migration_count="$(docker exec -e MYSQL_PWD=ci-test-password ragnarok-db-integration mariadb -N -s -h mariadb -uragnarok -D ragnarok -e "SELECT COUNT(*) FROM schema_migrations WHERE name='renewal_item_mob_data_v1'")"
+          test "$migration_count" -eq 1
+          echo "Item rows preserved across rAthena restart: $after; migration ledger count: $migration_count"
 
       - name: Clean up test containers and network
         if: always()
