@@ -3,7 +3,7 @@ set -eu
 umask 077
 cd /var/www/html
 
-mkdir -p /var/www/html/config /var/www/html/data/logs /var/www/html/data/itemshop /var/www/html/data/tmp
+mkdir -p /var/www/html/config /var/www/html/data/logs /var/www/html/data/itemshop /var/www/html/data/tmp /var/www/html/data/schemas
 
 # The config bind mount hides image defaults. Restore missing support files
 # without overwriting persistent user files or the two generated wrappers.
@@ -16,6 +16,14 @@ for default_file in /usr/share/fluxcp-default-config/*; do
         cp -a "$default_file" "/var/www/html/config/$name"
     fi
 done
+
+# The persistent data bind mount hides FluxCP's bundled data/schemas directory.
+# Restore upstream SQL migrations without overwriting user-added schema files.
+if [ ! -d /usr/share/fluxcp-default-data/schemas ]; then
+    echo "ERROR: upstream FluxCP schema files are missing from the image." >&2
+    exit 1
+fi
+cp -an /usr/share/fluxcp-default-data/schemas/. /var/www/html/data/schemas/
 
 # The Unraid config bind mount hides the image's config directory. Keep the
 # upstream defaults in /usr/share and generate environment-backed wrappers
