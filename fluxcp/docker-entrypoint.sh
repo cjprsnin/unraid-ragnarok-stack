@@ -5,6 +5,18 @@ cd /var/www/html
 
 mkdir -p /var/www/html/config /var/www/html/data
 
+# The config bind mount hides image defaults. Restore missing support files
+# without overwriting persistent user files or the two generated wrappers.
+for default_file in /usr/share/fluxcp-default-config/*; do
+    name="$(basename "$default_file")"
+    case "$name" in
+        application.php|servers.php) continue ;;
+    esac
+    if [ ! -e "/var/www/html/config/$name" ]; then
+        cp -a "$default_file" "/var/www/html/config/$name"
+    fi
+done
+
 # The Unraid config bind mount hides the image's config directory. Keep the
 # upstream defaults in /usr/share and generate environment-backed wrappers
 # only on first boot, so existing user edits are preserved.
@@ -56,6 +68,11 @@ fi
 # Fail fast if generated or user-maintained PHP config has a syntax error.
 php -l /var/www/html/config/application.php
 php -l /var/www/html/config/servers.php
+
+# Run FluxCP's own versioned schema updater before Apache serves requests.
+# Existing hand-managed cp_ tables without upstream markers are left untouched
+# by the bootstrap script; clean installs get the upstream schema set.
+php /usr/local/bin/fluxcp-bootstrap-schemas.php
 
 # Ensure FluxCP can write its data/cache tree when using Unraid bind mounts.
 chown -R www-data:www-data /var/www/html/config /var/www/html/data
