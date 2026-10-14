@@ -21,7 +21,7 @@ RUN ./configure --enable-packetver="${PACKETVER}" && make server \
     && cmake --build /tmp/yaml2sql-build --target yaml2sql --parallel "$(nproc)" \
     && cp sql-files/item_db2_re.sql sql-files/item_db2_re.schema.sql \
     && ./yaml2sql \
-    && if grep -Eq '^(INSERT INTO|REPLACE INTO)' sql-files/item_db2_re.sql; then mv sql-files/item_db2_re.sql sql-files/item_db2_re.data.sql; else printf '%s\\n' '-- no renewal import-item data in pinned source' > sql-files/item_db2_re.data.sql; fi \
+    && if grep -Eq '^(INSERT INTO|REPLACE INTO)' sql-files/item_db2_re.sql; then mv sql-files/item_db2_re.sql sql-files/item_db2_re.data.sql; else printf '%s\n' '-- no renewal import-item data in pinned source' > sql-files/item_db2_re.data.sql; fi \
     && test -s sql-files/item_db_re.sql \
     && test -s sql-files/item_db_re_equip.sql \
     && test -s sql-files/item_db_re_etc.sql \
