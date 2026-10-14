@@ -110,8 +110,8 @@ jobs:
           if [ "$server_ready" != true ]; then docker logs ragnarok-db-integration; echo "rAthena ports never became ready"; exit 1; fi
           docker run --rm --network ragnarok-ci -e MYSQL_PWD=ci-test-password --entrypoint bash ragnarok-rathena:db-test -lc '
             main_count=$(mariadb -N -s -h mariadb -u ragnarok -D ragnarok -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE()")
-            log_count=$(mariadb -N -s -h 127.0.0.1 -u ragnarok -D ragnarok_logs -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE()")
-            web_count=$(mariadb -N -s -h 127.0.0.1 -u ragnarok -D ragnarok -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = CONVERT(0x6775696c645f656d626c656d73 USING utf8mb4)")
+            log_count=$(mariadb -N -s -h mariadb -u ragnarok -D ragnarok_logs -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE()")
+            web_count=$(mariadb -N -s -h mariadb -u ragnarok -D ragnarok -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = CONVERT(0x6775696c645f656d626c656d73 USING utf8mb4)")
             test "$main_count" -gt 0
             test "$log_count" -gt 0
             test "$web_count" -gt 0
