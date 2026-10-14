@@ -190,7 +190,13 @@ SQL
     MYSQL_PWD="${DB_PASSWORD}" mariadb -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" -e "INSERT INTO schema_migrations (name, applied_at) VALUES ('renewal_item_data_v1', NOW());"
     echo "Renewal item data initialized and validated (${item_rows} rows)."
   else
-    echo "Renewal item data migration already recorded; leaving item tables untouched."
+    item_rows="$(MYSQL_PWD="${DB_PASSWORD}" mariadb -N -s -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" -e "SELECT COUNT(*) FROM item_db_re;")"
+    red_potion="$(MYSQL_PWD="${DB_PASSWORD}" mariadb -N -s -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" -e "SELECT COUNT(*) FROM item_db_re WHERE id=501;")"
+    if [[ "${item_rows}" -lt 20000 || "${red_potion}" != "1" ]]; then
+      echo "ERROR: renewal item migration is recorded but item data validation failed (rows=${item_rows}, Red Potion id 501 count=${red_potion}). Refusing to start with missing item data." >&2
+      exit 1
+    fi
+    echo "Renewal item data migration already recorded; validated ${item_rows} rows and preserved item tables."
   fi
 else
   echo "AUTO_IMPORT_SQL is disabled; skipping automatic schema initialization."
