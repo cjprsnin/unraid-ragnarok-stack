@@ -1,0 +1,5 @@
+<?xml version="1.0"?>
+<Repository>
+  <Profile>Unraid Ragnarok Stack provides a self-contained Ragnarok Online server stack with rAthena, MariaDB, and FluxCP, designed to be configured and managed together through Docker Compose.</Profile>
+  <WebPage>https://github.com/cjprsnin/unraid-ragnarok-stack</WebPage>
+</Repository>
