@@ -3,7 +3,7 @@ ARG RATHENA_REF=d4b8e7b8f16061cc2496d377ac8f777ce72a4f39
 ARG PACKETVER=20200401
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates git build-essential zlib1g-dev libpcre3-dev \
+    ca-certificates git build-essential cmake zlib1g-dev libpcre3-dev \
     libmariadb-dev libmariadb-dev-compat libssl-dev libxml2-dev python3 pkg-config \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /src
@@ -14,7 +14,21 @@ RUN test -s sql-files/main.sql \
     && test -s sql-files/logs.sql \
     && test -s sql-files/web.sql \
     && grep -Eiq "CREATE[[:space:]]+TABLE[[:space:]]+IF[[:space:]]+NOT[[:space:]]+EXISTS" sql-files/web.sql
-RUN ./configure --enable-packetver="${PACKETVER}" && make server
+RUN ./configure --enable-packetver="${PACKETVER}" && make server \
+    # Build the SQL converter with all prompts disabled, tied to this pinned source.
+    && sed -i '/#if defined(BUILDBOT)/i #define CONVERT_ALL' src/tool/yaml2sql.cpp \
+    && cmake -S . -B /tmp/yaml2sql-build -DPACKETVER="${PACKETVER}" \
+    && cmake --build /tmp/yaml2sql-build --target yaml2sql --parallel "$(nproc)" \
+    && cp sql-files/item_db2_re.sql sql-files/item_db2_re.schema.sql \
+    && ./yaml2sql \
+    && test -s sql-files/item_db_re.sql \
+    && test -s sql-files/item_db_re_equip.sql \
+    && test -s sql-files/item_db_re_etc.sql \
+    && test -s sql-files/item_db_re_usable.sql \
+    && test -s sql-files/item_db2_re.sql \
+    && rows="$(grep -hEc '^INSERT INTO' sql-files/item_db_re_equip.sql sql-files/item_db_re_etc.sql sql-files/item_db_re_usable.sql | awk '{sum += $1} END {print sum+0}')" \
+    && test "${rows}" -gt 20000 \
+    && echo "Generated renewal item SQL rows: ${rows}"
 
 FROM ubuntu:24.04
 ENV DEBIAN_FRONTEND=noninteractive
