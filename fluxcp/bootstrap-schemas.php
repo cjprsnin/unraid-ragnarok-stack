@@ -78,7 +78,7 @@ $existingFluxTables = (int) $pdo->query(
 // FluxCP tables, do not blindly replay every historical ALTER migration. Let the
 // administrator use FluxCP's own installer/updater to reconcile that database.
 if (!$markers && $existingFluxTables > 0) {
-    fwrite(STDOUT, "FluxCP schema bootstrap skipped: existing cp_ tables have no upstream schema markers; preserving the database. Use the FluxCP installer to reconcile its schema.\\n");
+    fwrite(STDOUT, "FluxCP schema bootstrap skipped: existing cp_ tables have no upstream schema markers; preserving the database. Use the FluxCP installer to reconcile its schema.\n");
     exit(0);
 }
 
@@ -100,4 +100,4 @@ foreach ($requiredTables as $table) {
     }
 }
 
-fwrite(STDOUT, "FluxCP upstream schema initialization is current; required CMS and item-shop tables exist.\\n");
+fwrite(STDOUT, "FluxCP upstream schema initialization is current; required CMS and item-shop tables exist.\n");
