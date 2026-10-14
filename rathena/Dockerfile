@@ -23,9 +23,9 @@ RUN ./configure --enable-packetver="${PACKETVER}" && make server \
     && cp sql-files/mob_db_re.sql sql-files/mob_db_re.schema.sql \
     && cp sql-files/mob_db2_re.sql sql-files/mob_db2_re.schema.sql \
     && ./yaml2sql \
-    && if grep -Eq '^(INSERT INTO|REPLACE INTO)' sql-files/item_db2_re.sql; then sed -n '/^\\(INSERT INTO\\|REPLACE INTO\\)/,$p' sql-files/item_db2_re.sql > sql-files/item_db2_re.data.sql; else printf '%s\n' '-- no renewal import-item data in pinned source' > sql-files/item_db2_re.data.sql; fi \
-    && if grep -Eq '^(INSERT INTO|REPLACE INTO)' sql-files/mob_db_re.sql; then sed -n '/^\\(INSERT INTO\\|REPLACE INTO\\)/,$p' sql-files/mob_db_re.sql > sql-files/mob_db_re.data.sql; else printf '%s\n' '-- no renewal monster data generated' > sql-files/mob_db_re.data.sql; fi \
-    && if grep -Eq '^(INSERT INTO|REPLACE INTO)' sql-files/mob_db2_re.sql; then sed -n '/^\\(INSERT INTO\\|REPLACE INTO\\)/,$p' sql-files/mob_db2_re.sql > sql-files/mob_db2_re.data.sql; else printf '%s\n' '-- no renewal import-monster data in pinned source' > sql-files/mob_db2_re.data.sql; fi \
+    && if grep -Eq '^(INSERT INTO|REPLACE INTO)' sql-files/item_db2_re.sql; then sed -n '/^REPLACE INTO/,$p' sql-files/item_db2_re.sql > sql-files/item_db2_re.data.sql; else printf '%s\n' '-- no renewal import-item data in pinned source' > sql-files/item_db2_re.data.sql; fi \
+    && if grep -Eq '^(INSERT INTO|REPLACE INTO)' sql-files/mob_db_re.sql; then sed -n '/^REPLACE INTO/,$p' sql-files/mob_db_re.sql > sql-files/mob_db_re.data.sql; else printf '%s\n' '-- no renewal monster data generated' > sql-files/mob_db_re.data.sql; fi \
+    && if grep -Eq '^(INSERT INTO|REPLACE INTO)' sql-files/mob_db2_re.sql; then sed -n '/^REPLACE INTO/,$p' sql-files/mob_db2_re.sql > sql-files/mob_db2_re.data.sql; else printf '%s\n' '-- no renewal import-monster data in pinned source' > sql-files/mob_db2_re.data.sql; fi \
     && test -s sql-files/item_db_re.sql \
     && test -s sql-files/item_db_re_equip.sql \
     && test -s sql-files/item_db_re_etc.sql \
