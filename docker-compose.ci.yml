@@ -1,0 +1,5 @@
+services:
+  rathena:
+    image: ragnarok-rathena:ci
+  fluxcp:
+    image: ragnarok-fluxcp:ci
