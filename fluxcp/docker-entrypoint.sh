@@ -3,7 +3,7 @@ set -eu
 umask 077
 cd /var/www/html
 
-mkdir -p /var/www/html/config /var/www/html/data
+mkdir -p /var/www/html/config /var/www/html/data/logs /var/www/html/data/itemshop /var/www/html/data/tmp
 
 # The config bind mount hides image defaults. Restore missing support files
 # without overwriting persistent user files or the two generated wrappers.
