@@ -16,5 +16,5 @@
   <AppTemplateType>compose</AppTemplateType>
   <ComposeProjectPath>unraid/compose</ComposeProjectPath>
   <ComposeSourceRepository>https://github.com/cjprsnin/unraid-ragnarok-stack</ComposeSourceRepository>
-  <ComposeSourceCommit>d15920a07623e7a9de4c08e5db5d9e651cf5cc5c</ComposeSourceCommit>
+  <ComposeSourceCommit>edc94f0b01737a4c0930bea02a0d8cc77d292b09</ComposeSourceCommit>
 </Container>
