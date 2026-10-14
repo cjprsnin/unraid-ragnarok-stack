@@ -14,8 +14,8 @@ RUN test -s sql-files/main.sql \
     && test -s sql-files/logs.sql \
     && test -s sql-files/web.sql \
     && grep -Eiq "CREATE[[:space:]]+TABLE[[:space:]]+IF[[:space:]]+NOT[[:space:]]+EXISTS" sql-files/web.sql
+# Build the SQL converter with all prompts disabled, tied to this pinned source.
 RUN ./configure --enable-packetver="${PACKETVER}" && make server \
-    # Build the SQL converter with all prompts disabled, tied to this pinned source.
     && sed -i '/#if defined(BUILDBOT)/i #define CONVERT_ALL' src/tool/yaml2sql.cpp \
     && cmake -S . -B /tmp/yaml2sql-build -DPACKETVER="${PACKETVER}" \
     && cmake --build /tmp/yaml2sql-build --target yaml2sql --parallel "$(nproc)" \
