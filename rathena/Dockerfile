@@ -40,6 +40,7 @@ RUN ./configure --enable-packetver="${PACKETVER}" && make server \
     && mob_rows="$(grep -c '^REPLACE INTO' sql-files/mob_db_re.data.sql || true)" \
     && test "${rows}" -gt 20000 \
     && test "${mob_rows}" -gt 1000 \
+    && printf 'EXPECTED_ITEM_ROWS=%s\\nEXPECTED_MOB_ROWS=%s\\n' "${rows}" "${mob_rows}" > sql-files/renewal-data-counts.env \
     && echo "Generated renewal SQL rows: items=${rows}, monsters=${mob_rows}"
 
 FROM ubuntu:24.04
