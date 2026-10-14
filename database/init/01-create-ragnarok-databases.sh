@@ -20,8 +20,12 @@ if [[ "$RAGNAROK_DB_NAME" == "$RAGNAROK_LOG_DB_NAME" ]]; then
   exit 64
 fi
 
-# Escape single quotes for SQL string literals.
-db_password_sql=${RAGNAROK_DB_PASSWORD//\'/\'\'}
+# Keep the password in a SQL-safe character set because it is embedded in the
+# initialization SQL. This still permits long, randomly generated secrets.
+if [[ ! "$RAGNAROK_DB_PASSWORD" =~ ^[A-Za-z0-9_!@#%+=.,:-]+$ ]]; then
+  echo "ERROR: RAGNAROK_DB_PASSWORD may use letters, numbers, and _!@#%+=.,:- only." >&2
+  exit 64
+fi
 mariadb --protocol=socket -uroot -p"$MARIADB_ROOT_PASSWORD" <<SQL
 CREATE DATABASE IF NOT EXISTS \`$RAGNAROK_DB_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE DATABASE IF NOT EXISTS \`$RAGNAROK_LOG_DB_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
