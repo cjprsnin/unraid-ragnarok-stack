@@ -4,7 +4,8 @@ set -Eeuo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-PROJECT="ro-ci-${GITHUB_RUN_ID:-local}-$$"
+PROJECT="ro-ci-${GITHUB_RUN_ID:-local}-$"
+export COMPOSE_PROJECT_NAME="$PROJECT"
 APPDATA_ROOT="${RUNNER_TEMP:-/tmp}/ragnarok-stack-ci-${PROJECT}"
 ENV_PATH="$ROOT_DIR/.env"
 
