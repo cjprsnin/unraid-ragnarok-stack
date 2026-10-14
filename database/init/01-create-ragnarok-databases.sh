@@ -26,6 +26,8 @@ if [[ ! "$RAGNAROK_DB_PASSWORD" =~ ^[A-Za-z0-9_!@#%+=.,:-]+$ ]]; then
   echo "ERROR: RAGNAROK_DB_PASSWORD may use letters, numbers, and _!@#%+=.,:- only." >&2
   exit 64
 fi
+# The validated character set excludes SQL quote and escape characters.
+db_password_sql="$RAGNAROK_DB_PASSWORD"
 mariadb --protocol=socket -uroot -p"$MARIADB_ROOT_PASSWORD" <<SQL
 CREATE DATABASE IF NOT EXISTS \`$RAGNAROK_DB_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE DATABASE IF NOT EXISTS \`$RAGNAROK_LOG_DB_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
