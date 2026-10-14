@@ -178,7 +178,7 @@ SQL
     fi
     item2_rows="$(MYSQL_PWD="${DB_PASSWORD}" mariadb -N -s -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" -e "SELECT COUNT(*) FROM item_db2_re;")"
     if [[ "${item2_rows}" == "0" ]]; then
-      MYSQL_PWD="${DB_PASSWORD}" mariadb -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" < /rathena/sql-files/item_db2_re.sql
+      MYSQL_PWD="${DB_PASSWORD}" mariadb -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" < /rathena/sql-files/item_db2_re.data.sql
     fi
 
     item_rows="$(MYSQL_PWD="${DB_PASSWORD}" mariadb -N -s -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" -e "SELECT COUNT(*) FROM item_db_re;")"
