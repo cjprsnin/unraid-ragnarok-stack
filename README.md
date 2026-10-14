@@ -52,6 +52,10 @@ The included database is isolated on the Compose network and does not require a 
 
 The push-triggered GitHub Actions workflow is **validation-only** and never publishes images. A separate `Publish container images (manual)` workflow exists for a deliberate release: it requires a manual dispatch, an explicit confirmation checkbox, and a successful validation build before publishing `latest` and commit-SHA tags to GHCR. Only run it after runtime checks pass. GHCR package visibility may need to be changed to public before an Unraid server can pull the images without authentication. This repository does not yet provide a working local-build Compose profile; the build environment may also need a newer Buildx version before source builds will work.
 
+## Clean-install integration test
+
+With Docker Engine and the Compose plugin available, run `bash tests/integration.sh` from a clean checkout to build the pinned rAthena and FluxCP images, start an isolated Compose stack, verify renewal item/monster data and FluxCP pages, then restart rAthena to check migration idempotency. The script refuses to overwrite an existing root `.env` and cleans up its temporary appdata on exit.
+
 ## Optional services
 
 ```bash
