@@ -152,7 +152,7 @@ SQL
 
   item_migration="$(MYSQL_PWD="${DB_PASSWORD}" mariadb -N -s -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" -e "SELECT COUNT(*) FROM schema_migrations WHERE name='renewal_item_data_v1';")"
   if [[ "${item_migration}" == "0" ]]; then
-    table_exists="$(MYSQL_PWD="${DB_PASSWORD}" mariadb -N -s -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name='item_db_re' AND table_type='BASE TABLE';")"
+    table_exists="$(MYSQL_PWD="${DB_PASSWORD}" mariadb -N -s -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name='item_db_re';")"
     if [[ "${table_exists}" == "0" ]]; then
       echo "Creating renewal item table schema."
       MYSQL_PWD="${DB_PASSWORD}" mariadb -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" < /rathena/sql-files/item_db_re.sql
