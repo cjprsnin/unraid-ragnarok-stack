@@ -87,10 +87,33 @@ test "$red_potion" -eq 1
 test "$mob_count" -gt 1000
 test "$migration_count" -eq 1
 
+check_page_contains() {
+  local label="$1" url="$2" expected="$3" body status
+  body="$(curl -sSL "$url")"
+  status="$(curl -sSL -o /dev/null -w '%{http_code}' "$url")"
+  if [[ "$status" -lt 200 || "$status" -ge 400 ]] || ! grep -qi "$expected" <<<"$body"; then
+    echo "FAIL: $label (HTTP $status); response body follows:" >&2
+    printf '%s\\n' "$body" | head -c 5000 >&2
+    echo >&2
+    return 1
+  fi
+}
+check_page_status() {
+  local label="$1" url="$2" status body
+  status="$(curl -sSL -o /dev/null -w '%{http_code}' "$url")"
+  if [[ "$status" -lt 200 || "$status" -ge 400 ]]; then
+    body="$(curl -sSL "$url" || true)"
+    echo "FAIL: $label (HTTP $status); response body follows:" >&2
+    printf '%s\\n' "$body" | head -c 5000 >&2
+    echo >&2
+    return 1
+  fi
+}
+
 echo "Checking FluxCP item view, item search, and account-create pages..."
-curl -fsSL "http://127.0.0.1:8088/?module=item&action=view&id=501" | grep -qi 'Red Potion'
-curl -fsSL "http://127.0.0.1:8088/?module=item&action=index&name=Red" | grep -qi 'Red Potion'
-curl -fsSL "http://127.0.0.1:8088/?module=account&action=create" >/dev/null
+check_page_contains "item view" "http://127.0.0.1:8088/?module=item&action=view&id=501" "Red Potion"
+check_page_contains "item search" "http://127.0.0.1:8088/?module=item&action=index&name=Red" "Red Potion"
+check_page_status "account-create page" "http://127.0.0.1:8088/?module=account&action=create"
 
 before="$item_count"
 echo "Restarting rAthena to verify the migration is idempotent..."
