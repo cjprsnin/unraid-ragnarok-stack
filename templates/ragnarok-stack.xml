@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>Ragnarok Stack</Name>
+  <Repository>ghcr.io/cjprsnin/ragnarok-rathena:latest</Repository>
+  <Registry>https://ghcr.io</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>bash</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/cjprsnin/unraid-ragnarok-stack/issues</Support>
+  <Project>https://github.com/cjprsnin/unraid-ragnarok-stack</Project>
+  <Overview>Self-contained rAthena Ragnarok Online server with MariaDB and FluxCP, managed as one Compose stack.</Overview>
+  <Category>GameServers:</Category>
+  <TemplateURL>https://raw.githubusercontent.com/cjprsnin/unraid-ragnarok-stack/main/templates/ragnarok-stack.xml</TemplateURL>
+  <MinVer>8.0.0</MinVer>
+  <AppTemplateType>compose</AppTemplateType>
+  <ComposeProjectPath>unraid/compose</ComposeProjectPath>
+  <ComposeSourceRepository>https://github.com/cjprsnin/unraid-ragnarok-stack</ComposeSourceRepository>
+  <ComposeSourceCommit>edc94f0b01737a4c0930bea02a0d8cc77d292b09</ComposeSourceCommit>
+</Container>

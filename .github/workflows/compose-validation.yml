@@ -1,0 +1,102 @@
+name: Compose configuration validation
+
+on:
+  pull_request:
+    paths:
+      - "docker-compose.yml"
+      - ".env.example"
+      - "database/**"
+      - "unraid/compose/**"
+      - "templates/**"
+      - "ca_profile.xml"
+      - ".github/workflows/compose-validation.yml"
+  push:
+    branches: ["**"]
+    paths:
+      - "docker-compose.yml"
+      - ".env.example"
+      - "database/**"
+      - "unraid/compose/**"
+      - "templates/**"
+      - "ca_profile.xml"
+      - ".github/workflows/compose-validation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  compose-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate database initializer syntax
+        run: |
+          bash -n database/init/01-create-ragnarok-databases.sh
+          bash -n unraid/compose/database/init/01-create-ragnarok-databases.sh
+
+      - name: Ensure packaged Compose files stay in sync
+        run: |
+          cmp docker-compose.yml unraid/compose/compose.yaml
+          cmp .env.example unraid/compose/.env.example
+          cmp database/init/01-create-ragnarok-databases.sh unraid/compose/database/init/01-create-ragnarok-databases.sh
+
+      - name: Test clean MariaDB initialization
+        run: |
+          docker run -d --name ragnarok-db-test \
+            --health-cmd='healthcheck.sh --connect --innodb_initialized' \
+            --health-interval=5s \
+            --health-timeout=5s \
+            --health-retries=20 \
+            -e MARIADB_ROOT_PASSWORD='test_root_secret' \
+            -e RAGNAROK_DB_NAME='ragnarok' \
+            -e RAGNAROK_LOG_DB_NAME='ragnarok_logs' \
+            -e RAGNAROK_DB_USER='ragnarok' \
+            -e RAGNAROK_DB_PASSWORD='test_game_secret' \
+            -v "$PWD/database/init/01-create-ragnarok-databases.sh:/docker-entrypoint-initdb.d/01-create-ragnarok-databases.sh:ro" \
+            mariadb:11.8
+          trap 'docker rm -f ragnarok-db-test >/dev/null 2>&1 || true' EXIT
+          ready=false
+          for attempt in $(seq 1 60); do
+            status="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}' ragnarok-db-test 2>/dev/null || true)"
+            if [ "$status" = healthy ]; then
+              ready=true
+              break
+            fi
+            if [ "$status" = unhealthy ] || [ "$status" = no-healthcheck ]; then
+              docker logs ragnarok-db-test
+              echo "MariaDB did not expose a successful health check (status: $status)."
+              exit 1
+            fi
+            sleep 2
+          done
+          if [ "$ready" != true ]; then
+            docker logs ragnarok-db-test
+            echo "Timed out waiting for MariaDB to become healthy."
+            exit 1
+          fi
+          docker exec ragnarok-db-test mariadb -uroot -ptest_root_secret -Nse \
+            "SELECT COUNT(*) FROM information_schema.SCHEMATA WHERE SCHEMA_NAME IN ('ragnarok','ragnarok_logs')" | grep -qx 2
+          docker exec -e MYSQL_PWD='test_game_secret' ragnarok-db-test mariadb -h127.0.0.1 -uragnarok -Nse \
+            "SELECT COUNT(*) FROM information_schema.SCHEMATA WHERE SCHEMA_NAME IN ('ragnarok','ragnarok_logs')" | grep -qx 2
+          docker exec ragnarok-db-test mariadb -uroot -ptest_root_secret -Nse \
+            "SHOW GRANTS FOR 'ragnarok'@'%'" | grep -q 'ragnarok.*'
+
+      - name: Validate root Compose configuration
+        run: |
+          cp .env.example .env
+          docker compose config -q
+
+      - name: Validate packaged Compose configuration
+        run: |
+          cp unraid/compose/.env.example unraid/compose/.env
+          docker compose --project-directory unraid/compose -f unraid/compose/compose.yaml config -q
+
+      - name: Validate Community Apps XML
+        run: |
+          python - <<'PY'
+          import xml.etree.ElementTree as ET
+          ET.parse("ca_profile.xml")
+          ET.parse("templates/ragnarok-stack.xml")
+          PY

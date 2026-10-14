@@ -121,6 +121,16 @@ done
 # Bootstrap schemas only when enabled and the target database has no tables.
 # Existing/partially populated databases are never dropped, truncated, or re-imported.
 if [[ "${AUTO_IMPORT_SQL,,}" == "true" ]]; then
+  if [[ ! -s /rathena/sql-files/renewal-data-counts.env ]]; then
+    echo "ERROR: generated renewal SQL row-count manifest is missing from this image." >&2
+    exit 1
+  fi
+  # This manifest is generated inside the image from the same pinned YAML data.
+  source /rathena/sql-files/renewal-data-counts.env
+  if [[ ! "${EXPECTED_ITEM_ROWS:-}" =~ ^[0-9]+$ || ! "${EXPECTED_MOB_ROWS:-}" =~ ^[0-9]+$ ]]; then
+    echo "ERROR: generated renewal SQL row-count manifest is invalid." >&2
+    exit 1
+  fi
   main_tables="$(MYSQL_PWD="${DB_PASSWORD}" mariadb -N -s -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" -D "${DB_NAME}" -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE();")"
   if [[ "${main_tables}" == "0" ]]; then
     echo "Importing rAthena main schema into empty database ${DB_NAME}."
@@ -139,6 +149,91 @@ if [[ "${AUTO_IMPORT_SQL,,}" == "true" ]]; then
   # FluxCP uses these tables for web-side configuration and guild emblem data.
   echo "Ensuring rAthena web schema tables exist in ${DB_NAME}."
   MYSQL_PWD="${DB_PASSWORD}" mariadb -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" < /rathena/sql-files/web.sql
+
+  # Item data is generated at image-build time from this image's pinned YAML
+  # sources. Never run the upstream DROP TABLE schema files against an existing
+  # table: only create a table when it is absent, then seed an empty table.
+  MYSQL_PWD="${DB_PASSWORD}" mariadb -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" <<'SQL'
+CREATE TABLE IF NOT EXISTS schema_migrations (
+  name VARCHAR(128) NOT NULL PRIMARY KEY,
+  applied_at DATETIME NOT NULL
+);
+SQL
+
+  item_migration="$(MYSQL_PWD="${DB_PASSWORD}" mariadb -N -s -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" -e "SELECT COUNT(*) FROM schema_migrations WHERE name='renewal_item_mob_data_v1';")"
+  if [[ "${item_migration}" == "0" ]]; then
+    table_exists="$(MYSQL_PWD="${DB_PASSWORD}" mariadb -N -s -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name='item_db_re';")"
+    if [[ "${table_exists}" == "0" ]]; then
+      echo "Creating renewal item table schema."
+      MYSQL_PWD="${DB_PASSWORD}" mariadb -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" < /rathena/sql-files/item_db_re.schema.sql
+    fi
+
+    item_rows="$(MYSQL_PWD="${DB_PASSWORD}" mariadb -N -s -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" -e "SELECT COUNT(*) FROM item_db_re;")"
+    if [[ "${item_rows}" == "0" ]]; then
+      echo "Seeding renewal item database from the image's generated SQL."
+      for item_file in item_db_re_usable.sql item_db_re_equip.sql item_db_re_etc.sql; do
+        test -s "/rathena/sql-files/${item_file}" || { echo "ERROR: generated item SQL is missing: ${item_file}" >&2; exit 1; }
+        MYSQL_PWD="${DB_PASSWORD}" mariadb -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" < "/rathena/sql-files/${item_file}"
+      done
+    elif [[ "${item_rows}" -lt "${EXPECTED_ITEM_ROWS}" ]]; then
+      echo "ERROR: item_db_re contains only ${item_rows} rows but its migration is not recorded. Refusing to overwrite or silently accept a partial import; inspect the table and recover it before restarting." >&2
+      exit 1
+    else
+      echo "Found ${item_rows} existing renewal item rows; preserving them."
+    fi
+
+    item2_exists="$(MYSQL_PWD="${DB_PASSWORD}" mariadb -N -s -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name='item_db2_re' AND table_type='BASE TABLE';")"
+    if [[ "${item2_exists}" == "0" ]]; then
+      MYSQL_PWD="${DB_PASSWORD}" mariadb -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" < /rathena/sql-files/item_db2_re.schema.sql
+    fi
+    item2_rows="$(MYSQL_PWD="${DB_PASSWORD}" mariadb -N -s -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" -e "SELECT COUNT(*) FROM item_db2_re;")"
+    if [[ "${item2_rows}" == "0" ]]; then
+      MYSQL_PWD="${DB_PASSWORD}" mariadb -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" < /rathena/sql-files/item_db2_re.data.sql
+    fi
+
+    mob_exists="$(MYSQL_PWD="${DB_PASSWORD}" mariadb -N -s -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name='mob_db_re';")"
+    if [[ "${mob_exists}" == "0" ]]; then
+      echo "Creating renewal monster table schema for FluxCP item detail pages."
+      MYSQL_PWD="${DB_PASSWORD}" mariadb -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" < /rathena/sql-files/mob_db_re.schema.sql
+    fi
+    mob_rows="$(MYSQL_PWD="${DB_PASSWORD}" mariadb -N -s -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" -e "SELECT COUNT(*) FROM mob_db_re;")"
+    if [[ "${mob_rows}" == "0" ]]; then
+      MYSQL_PWD="${DB_PASSWORD}" mariadb -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" < /rathena/sql-files/mob_db_re.data.sql
+    elif [[ "${mob_rows}" -lt "${EXPECTED_MOB_ROWS}" ]]; then
+      echo "ERROR: mob_db_re contains only ${mob_rows} rows but its migration is not recorded. Refusing to overwrite a partial monster import." >&2
+      exit 1
+    else
+      echo "Found ${mob_rows} existing renewal monster rows; preserving them."
+    fi
+
+    mob2_exists="$(MYSQL_PWD="${DB_PASSWORD}" mariadb -N -s -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name='mob_db2_re';")"
+    if [[ "${mob2_exists}" == "0" ]]; then
+      MYSQL_PWD="${DB_PASSWORD}" mariadb -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" < /rathena/sql-files/mob_db2_re.schema.sql
+    fi
+    mob2_rows="$(MYSQL_PWD="${DB_PASSWORD}" mariadb -N -s -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" -e "SELECT COUNT(*) FROM mob_db2_re;")"
+    if [[ "${mob2_rows}" == "0" ]]; then
+      MYSQL_PWD="${DB_PASSWORD}" mariadb -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" < /rathena/sql-files/mob_db2_re.data.sql
+    fi
+
+    item_rows="$(MYSQL_PWD="${DB_PASSWORD}" mariadb -N -s -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" -e "SELECT COUNT(*) FROM item_db_re;")"
+    red_potion="$(MYSQL_PWD="${DB_PASSWORD}" mariadb -N -s -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" -e "SELECT COUNT(*) FROM item_db_re WHERE id=501;")"
+    mob_rows="$(MYSQL_PWD="${DB_PASSWORD}" mariadb -N -s -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" -e "SELECT COUNT(*) FROM mob_db_re;")"
+    if [[ "${item_rows}" -lt "${EXPECTED_ITEM_ROWS}" || "${red_potion}" != "1" || "${mob_rows}" -lt "${EXPECTED_MOB_ROWS}" ]]; then
+      echo "ERROR: renewal item/monster database validation failed (item rows=${item_rows}, Red Potion id 501 count=${red_potion}, monster rows=${mob_rows})." >&2
+      exit 1
+    fi
+    MYSQL_PWD="${DB_PASSWORD}" mariadb -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" -e "INSERT INTO schema_migrations (name, applied_at) VALUES ('renewal_item_mob_data_v1', NOW());"
+    echo "Renewal item/monster data initialized and validated (items=${item_rows}, monsters=${mob_rows})."
+  else
+    item_rows="$(MYSQL_PWD="${DB_PASSWORD}" mariadb -N -s -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" -e "SELECT COUNT(*) FROM item_db_re;")"
+    red_potion="$(MYSQL_PWD="${DB_PASSWORD}" mariadb -N -s -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" -e "SELECT COUNT(*) FROM item_db_re WHERE id=501;")"
+    mob_rows="$(MYSQL_PWD="${DB_PASSWORD}" mariadb -N -s -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" -e "SELECT COUNT(*) FROM mob_db_re;")"
+    if [[ "${item_rows}" -lt "${EXPECTED_ITEM_ROWS}" || "${red_potion}" != "1" || "${mob_rows}" -lt "${EXPECTED_MOB_ROWS}" ]]; then
+      echo "ERROR: recorded renewal item/monster migration failed validation (items=${item_rows}, Red Potion id 501 count=${red_potion}, monsters=${mob_rows}). Refusing to start with missing data." >&2
+      exit 1
+    fi
+    echo "Renewal item/monster migration already recorded; validated items=${item_rows}, monsters=${mob_rows}, and preserved item tables."
+  fi
 else
   echo "AUTO_IMPORT_SQL is disabled; skipping automatic schema initialization."
 fi

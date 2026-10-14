@@ -1,0 +1,13 @@
+services:
+  database:
+    container_name: ${COMPOSE_PROJECT_NAME:-ro-ci}-database
+  rathena:
+    image: ragnarok-rathena:ci
+    container_name: ${COMPOSE_PROJECT_NAME:-ro-ci}-rathena
+  fluxcp:
+    image: ragnarok-fluxcp:ci
+    container_name: ${COMPOSE_PROJECT_NAME:-ro-ci}-fluxcp
+
+networks:
+  ragnarok:
+    name: ${COMPOSE_PROJECT_NAME:-ro-ci}-network
