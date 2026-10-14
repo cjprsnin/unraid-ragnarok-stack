@@ -4,7 +4,7 @@ This directory is the self-contained Compose source package for Unraid's native 
 
 ## Unraid 7.x
 
-Unraid 7 does not use the native Community Apps Compose-package contract. Install Compose Manager Plus from Community Apps first, then create a Compose stack and import this directory's `compose.yaml` and `.env.example`. Configure the environment values and start the stack from Compose Manager Plus.
+Unraid 7 does not use the native Community Apps Compose-package contract. Install Compose Manager Plus from Community Apps first. Create one stack, paste the contents of this directory's `compose.yaml` into its Compose editor, and copy the values from `.env.example` into its ENV editor. Save and start the stack from Compose Manager Plus.
 
 Compose Manager Plus lists Unraid 6.9.0+ as its requirement, but reports that versions older than 7.2.3 are not currently tested. Do not consider those earlier releases verified until tested.
 
