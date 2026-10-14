@@ -12,7 +12,7 @@ A Docker Compose starter for running a private rAthena server with FluxCP on Unr
 - OpenKore is opt-in with the `bot` profile.
 - The Ollama log-analysis helper is opt-in with the `supervisor` profile and is disabled by default.
 - Persistent data belongs under the configured Unraid appdata directory.
-- FluxCP generates its initial application and database configuration from environment variables on first start; its config files then persist under appdata for manual customization.
+- FluxCP restores missing upstream configuration defaults, generates its initial application/database configuration from environment variables, and uses FluxCP's own versioned schema updater on a clean first install. Config files and schema-version markers persist under appdata.
 
 ## Unraid compatibility and installation path
 
@@ -44,7 +44,7 @@ We will not use a privileged “installer” container with access to the host D
    docker compose up -d fluxcp
    ```
 
-On first startup, MariaDB creates the `ragnarok` and `ragnarok_logs` databases and a dedicated SQL account. The rAthena entrypoint imports `main.sql` and `logs.sql` only when the respective databases contain zero tables, and applies upstream `web.sql` using `CREATE TABLE IF NOT EXISTS`. The image build runs the pinned revision's `yaml2sql` converter and packages generated renewal item and monster data. On first startup, the entrypoint creates the item/monster table schemas only when missing, seeds empty tables, verifies at least 20,000 renewal items including Red Potion (ID 501) and at least 1,000 monsters, and records the successful migration in MariaDB. It does not re-run the item import on container recreation. If an unrecorded item table contains a partial data set, startup fails closed rather than dropping or silently replacing it. Existing main/log schemas are not automatically reset. Set `AUTO_IMPORT_SQL=false` to disable automatic schema and item-data initialization.
+On first startup, MariaDB creates the `ragnarok` and `ragnarok_logs` databases and a dedicated SQL account. The rAthena entrypoint imports `main.sql` and `logs.sql` only when the respective databases contain zero tables, and applies upstream `web.sql` using `CREATE TABLE IF NOT EXISTS`. The image build runs the pinned revision's `yaml2sql` converter and packages generated renewal item and monster data with expected row counts. On first startup, rAthena creates the item/monster table schemas only when missing, seeds empty tables, validates the generated row counts and Red Potion (ID 501), and records the successful migration in MariaDB. FluxCP runs its upstream versioned schema updater to initialize its CMS and item-shop tables on a clean database. If it finds existing `cp_` tables but no upstream schema markers, it leaves them untouched rather than replaying historical ALTER migrations. It does not re-run the item import on container recreation. If an unrecorded item table contains a partial data set, startup fails closed rather than dropping or silently replacing it. Existing main/log schemas are not automatically reset. Set `AUTO_IMPORT_SQL=false` to disable automatic schema and item-data initialization.
 
 The included database is isolated on the Compose network and does not require a pre-existing MariaDB container or manually created Docker network.
 
