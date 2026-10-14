@@ -217,7 +217,8 @@ SQL
   else
     item_rows="$(MYSQL_PWD="${DB_PASSWORD}" mariadb -N -s -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" -e "SELECT COUNT(*) FROM item_db_re;")"
     red_potion="$(MYSQL_PWD="${DB_PASSWORD}" mariadb -N -s -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" -e "SELECT COUNT(*) FROM item_db_re WHERE id=501;")"
-    if [[ "${item_rows}" -lt 20000 || "${red_potion}" != "1" ]]; then
+    mob_rows="$(MYSQL_PWD="${DB_PASSWORD}" mariadb -N -s -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" -e "SELECT COUNT(*) FROM mob_db_re;")"
+    if [[ "${item_rows}" -lt 20000 || "${red_potion}" != "1" || "${mob_rows}" -lt 1000 ]]; then
       echo "ERROR: renewal item migration is recorded but item data validation failed (rows=${item_rows}, Red Potion id 501 count=${red_potion}). Refusing to start with missing item data." >&2
       exit 1
     fi
