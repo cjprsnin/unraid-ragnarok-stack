@@ -150,7 +150,7 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 );
 SQL
 
-  item_migration="$(MYSQL_PWD="${DB_PASSWORD}" mariadb -N -s -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" -e "SELECT COUNT(*) FROM schema_migrations WHERE name='renewal_item_data_v1';")"
+  item_migration="$(MYSQL_PWD="${DB_PASSWORD}" mariadb -N -s -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" -e "SELECT COUNT(*) FROM schema_migrations WHERE name='renewal_item_mob_data_v1';")"
   if [[ "${item_migration}" == "0" ]]; then
     table_exists="$(MYSQL_PWD="${DB_PASSWORD}" mariadb -N -s -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name='item_db_re';")"
     if [[ "${table_exists}" == "0" ]]; then
@@ -181,14 +181,39 @@ SQL
       MYSQL_PWD="${DB_PASSWORD}" mariadb -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" < /rathena/sql-files/item_db2_re.data.sql
     fi
 
+    mob_exists="$(MYSQL_PWD="${DB_PASSWORD}" mariadb -N -s -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name='mob_db_re';")"
+    if [[ "${mob_exists}" == "0" ]]; then
+      echo "Creating renewal monster table schema for FluxCP item detail pages."
+      MYSQL_PWD="${DB_PASSWORD}" mariadb -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" < /rathena/sql-files/mob_db_re.schema.sql
+    fi
+    mob_rows="$(MYSQL_PWD="${DB_PASSWORD}" mariadb -N -s -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" -e "SELECT COUNT(*) FROM mob_db_re;")"
+    if [[ "${mob_rows}" == "0" ]]; then
+      MYSQL_PWD="${DB_PASSWORD}" mariadb -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" < /rathena/sql-files/mob_db_re.data.sql
+    elif [[ "${mob_rows}" -lt 1000 ]]; then
+      echo "ERROR: mob_db_re contains only ${mob_rows} rows but its migration is not recorded. Refusing to overwrite a partial monster import." >&2
+      exit 1
+    else
+      echo "Found ${mob_rows} existing renewal monster rows; preserving them."
+    fi
+
+    mob2_exists="$(MYSQL_PWD="${DB_PASSWORD}" mariadb -N -s -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name='mob_db2_re';")"
+    if [[ "${mob2_exists}" == "0" ]]; then
+      MYSQL_PWD="${DB_PASSWORD}" mariadb -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" < /rathena/sql-files/mob_db2_re.schema.sql
+    fi
+    mob2_rows="$(MYSQL_PWD="${DB_PASSWORD}" mariadb -N -s -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" -e "SELECT COUNT(*) FROM mob_db2_re;")"
+    if [[ "${mob2_rows}" == "0" ]]; then
+      MYSQL_PWD="${DB_PASSWORD}" mariadb -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" < /rathena/sql-files/mob_db2_re.data.sql
+    fi
+
     item_rows="$(MYSQL_PWD="${DB_PASSWORD}" mariadb -N -s -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" -e "SELECT COUNT(*) FROM item_db_re;")"
     red_potion="$(MYSQL_PWD="${DB_PASSWORD}" mariadb -N -s -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" -e "SELECT COUNT(*) FROM item_db_re WHERE id=501;")"
-    if [[ "${item_rows}" -lt 20000 || "${red_potion}" != "1" ]]; then
-      echo "ERROR: renewal item database validation failed (rows=${item_rows}, Red Potion id 501 count=${red_potion})." >&2
+    mob_rows="$(MYSQL_PWD="${DB_PASSWORD}" mariadb -N -s -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" -e "SELECT COUNT(*) FROM mob_db_re;")"
+    if [[ "${item_rows}" -lt 20000 || "${red_potion}" != "1" || "${mob_rows}" -lt 1000 ]]; then
+      echo "ERROR: renewal item/monster database validation failed (item rows=${item_rows}, Red Potion id 501 count=${red_potion}, monster rows=${mob_rows})." >&2
       exit 1
     fi
-    MYSQL_PWD="${DB_PASSWORD}" mariadb -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" -e "INSERT INTO schema_migrations (name, applied_at) VALUES ('renewal_item_data_v1', NOW());"
-    echo "Renewal item data initialized and validated (${item_rows} rows)."
+    MYSQL_PWD="${DB_PASSWORD}" mariadb -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" -e "INSERT INTO schema_migrations (name, applied_at) VALUES ('renewal_item_mob_data_v1', NOW());"
+    echo "Renewal item/monster data initialized and validated (items=${item_rows}, monsters=${mob_rows})."
   else
     item_rows="$(MYSQL_PWD="${DB_PASSWORD}" mariadb -N -s -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" -e "SELECT COUNT(*) FROM item_db_re;")"
     red_potion="$(MYSQL_PWD="${DB_PASSWORD}" mariadb -N -s -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" -e "SELECT COUNT(*) FROM item_db_re WHERE id=501;")"
