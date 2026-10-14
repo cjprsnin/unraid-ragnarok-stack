@@ -6,6 +6,9 @@ on:
       - "docker-compose.yml"
       - ".env.example"
       - "database/**"
+      - "unraid/compose/**"
+      - "templates/**"
+      - "ca_profile.xml"
       - ".github/workflows/compose-validation.yml"
   push:
     branches: ["main", "master"]
@@ -13,6 +16,9 @@ on:
       - "docker-compose.yml"
       - ".env.example"
       - "database/**"
+      - "unraid/compose/**"
+      - "templates/**"
+      - "ca_profile.xml"
       - ".github/workflows/compose-validation.yml"
 
 permissions:
@@ -26,9 +32,30 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Validate database initializer syntax
-        run: bash -n database/init/01-create-ragnarok-databases.sh
+        run: |
+          bash -n database/init/01-create-ragnarok-databases.sh
+          bash -n unraid/compose/database/init/01-create-ragnarok-databases.sh
 
-      - name: Validate Compose configuration
+      - name: Ensure packaged Compose files stay in sync
+        run: |
+          cmp docker-compose.yml unraid/compose/compose.yaml
+          cmp .env.example unraid/compose/.env.example
+          cmp database/init/01-create-ragnarok-databases.sh unraid/compose/database/init/01-create-ragnarok-databases.sh
+
+      - name: Validate root Compose configuration
         run: |
           cp .env.example .env
           docker compose config -q
+
+      - name: Validate packaged Compose configuration
+        run: |
+          cp unraid/compose/.env.example unraid/compose/.env
+          docker compose --project-directory unraid/compose -f unraid/compose/compose.yaml config -q
+
+      - name: Validate Community Apps XML
+        run: |
+          python - <<'PY'
+          import xml.etree.ElementTree as ET
+          ET.parse("ca_profile.xml")
+          ET.parse("templates/ragnarok-stack.xml")
+          PY
