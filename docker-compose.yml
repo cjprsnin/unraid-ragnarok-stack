@@ -1,6 +1,30 @@
 name: ragnarok
 
 services:
+  database:
+    image: mariadb:11.8
+    container_name: ragnarok-database
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:?Set MARIADB_ROOT_PASSWORD in .env}
+      RAGNAROK_DB_NAME: ${RAGNAROK_DB_NAME:-ragnarok}
+      RAGNAROK_LOG_DB_NAME: ${RAGNAROK_LOG_DB_NAME:-ragnarok_logs}
+      RAGNAROK_DB_USER: ${RAGNAROK_DB_USER:-ragnarok}
+      RAGNAROK_DB_PASSWORD: ${RAGNAROK_DB_PASSWORD:?Set RAGNAROK_DB_PASSWORD in .env}
+    volumes:
+      - ${APPDATA_ROOT:-/mnt/user/appdata/ragnarok}/database/data:/var/lib/mysql
+      - ./database/init/01-create-ragnarok-databases.sh:/docker-entrypoint-initdb.d/01-create-ragnarok-databases.sh:ro
+    networks:
+      ragnarok:
+        aliases:
+          - ragnarok-db
+    healthcheck:
+      test: ["CMD-SHELL", "mariadb-admin ping -h 127.0.0.1 -uroot -p\"$${MARIADB_ROOT_PASSWORD}\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
   rathena:
     image: ghcr.io/cjprsnin/ragnarok-rathena:latest
     container_name: ragnarok-rathena
@@ -25,6 +49,9 @@ services:
       - "5121:5121/tcp"
     networks:
       - ragnarok
+    depends_on:
+      database:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "for p in 6900 6121 5121; do timeout 2 bash -c \"</dev/tcp/127.0.0.1/$$p\" || exit 1; done"]
       interval: 30s
@@ -97,4 +124,4 @@ services:
 networks:
   ragnarok:
     name: ragnarok
-    external: true
+    driver: bridge
