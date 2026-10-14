@@ -87,7 +87,7 @@ services:
       rathena:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "php", "-r", '$ctx=stream_context_create(["http"=>["timeout"=>3,"ignore_errors"=>true]]); $body=@file_get_contents("http://127.0.0.1/",$ctx); exit($body===false ? 1 : 0);']
+      test: ["CMD", "php", "-r", '$socket=@fsockopen("127.0.0.1",80); exit($socket ? 0 : 1);']
       interval: 15s
       timeout: 5s
       retries: 5
