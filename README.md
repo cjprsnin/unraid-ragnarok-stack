@@ -2,7 +2,7 @@
 
 A Docker Compose starter for running a private rAthena server with FluxCP on Unraid.
 
-> **Status: development / not yet production-ready.** CI now validates Compose/XML, checks the packaged files stay synchronized, and exercises fresh MariaDB database/user initialization. A full clean-stack startup and FluxCP item-page validation still need end-to-end testing. The guarded schema bootstrap only imports into empty databases; still back up your data before use.
+> **Status: development / not yet production-ready.** CI validates Compose/XML, fresh MariaDB initialization, a clean rAthena + FluxCP image integration, renewal item row counts, FluxCP item/account pages, and item-data persistence across an rAthena restart. A successful CI run is not a substitute for a clean Unraid install test. Existing databases are not automatically reset; back up data before use.
 
 ## Design
 
@@ -44,7 +44,7 @@ We will not use a privileged “installer” container with access to the host D
    docker compose up -d fluxcp
    ```
 
-On first startup, MariaDB creates the `ragnarok` and `ragnarok_logs` databases and a dedicated SQL account. The rAthena entrypoint imports `main.sql` and `logs.sql` only when the respective databases contain zero tables, and applies upstream `web.sql` using `CREATE TABLE IF NOT EXISTS`. Existing or partially populated databases are not automatically reset. Set `AUTO_IMPORT_SQL=false` to disable rAthena's automatic schema initialization.
+On first startup, MariaDB creates the `ragnarok` and `ragnarok_logs` databases and a dedicated SQL account. The rAthena entrypoint imports `main.sql` and `logs.sql` only when the respective databases contain zero tables, and applies upstream `web.sql` using `CREATE TABLE IF NOT EXISTS`. The image build runs the pinned revision's `yaml2sql` converter and packages the generated renewal item data. On first startup, the entrypoint creates the item table schemas only when missing, seeds empty item tables, verifies at least 20,000 renewal items including Red Potion (ID 501), and records the successful item migration in MariaDB. It does not re-run the item import on container recreation. If an unrecorded item table contains a partial data set, startup fails closed rather than dropping or silently replacing it. Existing main/log schemas are not automatically reset. Set `AUTO_IMPORT_SQL=false` to disable automatic schema and item-data initialization.
 
 The included database is isolated on the Compose network and does not require a pre-existing MariaDB container or manually created Docker network.
 
