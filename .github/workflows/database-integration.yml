@@ -95,6 +95,19 @@ jobs:
           done
           docker logs ragnarok-db-integration | grep -q "Importing rAthena main schema into empty database ragnarok."
           docker logs ragnarok-db-integration | grep -q "Importing rAthena log schema into empty database ragnarok_logs."
+          server_ready=false
+          for attempt in $(seq 1 60); do
+            if docker exec ragnarok-db-integration bash -lc 'for p in 6900 6121 5121; do timeout 2 bash -c "</dev/tcp/127.0.0.1/$p" || exit 1; done'; then
+              server_ready=true
+              break
+            fi
+            if [ "$(docker inspect -f '{{.State.Running}}' ragnarok-db-integration)" != true ]; then
+              docker logs ragnarok-db-integration
+              exit 1
+            fi
+            sleep 2
+          done
+          if [ "$server_ready" != true ]; then docker logs ragnarok-db-integration; echo "rAthena ports never became ready"; exit 1; fi
           docker run --rm --network ragnarok-ci -e MYSQL_PWD=ci-test-password --entrypoint bash ragnarok-rathena:db-test -lc '
             main_count=$(mariadb -N -s -h mariadb -u ragnarok -D ragnarok -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE()")
             log_count=$(mariadb -N -s -h 127.0.0.1 -u ragnarok -D ragnarok_logs -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE()")
