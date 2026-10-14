@@ -14,6 +14,17 @@ A Docker Compose starter for running a private rAthena server with FluxCP on Unr
 - Persistent data belongs under the configured Unraid appdata directory.
 - FluxCP generates its initial application and database configuration from environment variables on first start; its config files then persist under appdata for manual customization.
 
+## Unraid compatibility and installation path
+
+The target is **Unraid 7.x and newer**. The stack is packaged as one Docker Compose project so the database, rAthena, and FluxCP can be configured and managed together.
+
+- **Unraid 7.x:** use **Compose Manager Plus** to manage the project from the Unraid WebGUI. Install the plugin first, then create/import the Ragnarok Compose project and configure its environment values. Compose Manager Plus is listed for Unraid 6.9.0+, but its current Community Apps listing notes that versions older than 7.2.3 have not been tested; those versions need explicit validation before we claim support.
+- **Unraid 8+:** prefer the native Community Apps Compose-package workflow when preparing the public listing. That installer contract is specific to Unraid 8, so it must not be the only supported installation route if Unraid 7.x remains in scope.
+
+We will not use a privileged “installer” container with access to the host Docker socket just to simulate one-click installation. On Unraid 7.x, installing Compose Manager Plus is a separate prerequisite; after that, Ragnarok is deployed as one stack rather than three individually configured templates.
+
+**Release status:** the repository and GHCR images remain private during development. A Community Apps listing for general users is not ready until image access, fresh-install testing, and the appropriate installation metadata are complete.
+
 ## Before you start
 
 1. Copy `.env.example` to `.env`.
