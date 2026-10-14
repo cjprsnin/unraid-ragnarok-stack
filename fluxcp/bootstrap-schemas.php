@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-define('FLUX_ROOT', str_replace('\\\\', '/', dirname(__DIR__, 2) . '/var/www/html'));
+define('FLUX_ROOT', '/var/www/html');
 define('FLUX_DATA_DIR', 'data');
 define('FLUX_CONFIG_DIR', 'config');
 define('FLUX_LIB_DIR', 'lib');
