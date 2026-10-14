@@ -99,7 +99,7 @@ foreach ($installer->servers as $mainServer) {
         $charMapSchemaCount += count($charMapServer->schemas);
     }
 }
-fwrite(STDOUT, "FluxCP schema updater discovered login schemas=$loginSchemaCount and char/map schemas=$charMapSchemaCount.\\n");
+fwrite(STDOUT, "FluxCP schema updater discovered login schemas=$loginSchemaCount and char/map schemas=$charMapSchemaCount.\n");
 $installer->updateAll();
 
 if ($installer->updateNeeded()) {
