@@ -14,10 +14,26 @@ if [[ -e "$ENV_PATH" ]]; then
   exit 2
 fi
 
+COMPOSE=()
 cleanup() {
-  docker compose -p "$PROJECT" -f docker-compose.yml -f docker-compose.ci.yml down -v --remove-orphans >/dev/null 2>&1 || true
+  local status=$?
+  if (( status != 0 && ${#COMPOSE[@]} > 0 )); then
+    echo "Integration test failed; preserving diagnostic output before cleanup." >&2
+    "${COMPOSE[@]}" ps >&2 || true
+    "${COMPOSE[@]}" logs --no-color >&2 || true
+  fi
+  if (( ${#COMPOSE[@]} > 0 )); then
+    "${COMPOSE[@]}" down -v --remove-orphans >/dev/null 2>&1 || true
+  fi
   rm -f "$ENV_PATH"
-  rm -rf "$APPDATA_ROOT"
+  if [[ "$EUID" -eq 0 ]]; then
+    rm -rf -- "$APPDATA_ROOT" || true
+  elif command -v sudo >/dev/null 2>&1; then
+    sudo -n rm -rf -- "$APPDATA_ROOT" || rm -rf -- "$APPDATA_ROOT" 2>/dev/null || true
+  else
+    rm -rf -- "$APPDATA_ROOT" 2>/dev/null || true
+  fi
+  return "$status"
 }
 trap cleanup EXIT
 
