@@ -93,7 +93,7 @@ check_page_contains() {
   status="$(curl -sSL -o /dev/null -w '%{http_code}' "$url")"
   if [[ "$status" -lt 200 || "$status" -ge 400 ]] || ! grep -qi "$expected" <<<"$body"; then
     echo "FAIL: $label (HTTP $status); response body follows:" >&2
-    printf '%s\\n' "$body" | head -c 5000 >&2
+    printf '%s\n' "$body" | head -c 5000 >&2
     echo >&2
     return 1
   fi
@@ -104,7 +104,7 @@ check_page_status() {
   if [[ "$status" -lt 200 || "$status" -ge 400 ]]; then
     body="$(curl -sSL "$url" || true)"
     echo "FAIL: $label (HTTP $status); response body follows:" >&2
-    printf '%s\\n' "$body" | head -c 5000 >&2
+    printf '%s\n' "$body" | head -c 5000 >&2
     echo >&2
     return 1
   fi
