@@ -11,7 +11,7 @@ on:
       - "ca_profile.xml"
       - ".github/workflows/compose-validation.yml"
   push:
-    branches: ["main", "master"]
+    branches: ["**"]
     paths:
       - "docker-compose.yml"
       - ".env.example"
