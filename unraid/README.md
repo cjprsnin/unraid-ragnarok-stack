@@ -8,7 +8,7 @@ This directory documents how to deploy the repository's Compose stack with the U
 - The existing MariaDB container; this stack intentionally does **not** create a second database.
 - The existing Docker network named `ragnarok`, with your MariaDB container attached under the network alias `ragnarok-db`.
 - A dedicated MariaDB account with privileges limited to the `ragnarok` and `ragnarok_logs` databases.
-- GHCR images published for this repository before using the current Compose file. The normal CI workflow only validates/builds and never publishes.
+- Published images or a local build. The default Compose file pulls from GHCR; the normal CI workflow only validates/builds and never publishes, so until images exist use the local build below.
 
 ## Import
 
@@ -18,7 +18,12 @@ This directory documents how to deploy the repository's Compose stack with the U
 4. Confirm the existing MariaDB container is on the `ragnarok` network with alias `ragnarok-db`. Do not create a second MariaDB service.
 5. Import the repository-root `docker-compose.yml` into Compose Manager as a stack and set its working directory to the folder containing `.env`.
 6. Run `docker compose config -q` from that folder before starting anything.
-7. Start only `rathena` first. Inspect its logs and confirm the database schema and game-server daemons are healthy before starting `fluxcp`.
+7. Until GHCR images exist, build locally on the Unraid host (see "Building locally" in the repository `README.md`):
+   ```bash
+   docker compose -f docker-compose.yml -f docker-compose.build.yml build
+   ```
+   Then pass the same `-f docker-compose.yml -f docker-compose.build.yml` flags to every later compose command (including `config -q`), otherwise Compose falls back to the GHCR image names.
+8. Start only `rathena` first. Inspect its logs and confirm the database schema and game-server daemons are healthy before starting `fluxcp`.
 
 ## Ports and optional services
 

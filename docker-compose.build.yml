@@ -1,0 +1,27 @@
+# Local-build override for the Ragnarok stack.
+#
+# Use this to build the images from this checkout instead of pulling them from
+# GHCR (for example before any images have been published).
+#
+# Usage (pass BOTH -f flags to every compose command, see README.md):
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml build
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d rathena
+#
+# Source refs (RATHENA_REF, FLUXCP_REF, OPENKORE_REF) and PACKETVER come from
+# the ARG defaults in each Dockerfile, so local builds use the same pinned
+# versions as CI and cannot drift from it. Override one per build with, e.g.:
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml \
+#     build --build-arg PACKETVER=... rathena
+services:
+  rathena:
+    image: ragnarok-rathena:local
+    build: { context: ./rathena }
+  fluxcp:
+    image: ragnarok-fluxcp:local
+    build: { context: ./fluxcp }
+  openkore:
+    image: ragnarok-openkore:local
+    build: { context: ./openkore }
+  ollama-supervisor:
+    image: ragnarok-ollama-supervisor:local
+    build: { context: ./supervisor }

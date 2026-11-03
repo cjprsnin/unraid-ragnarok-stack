@@ -27,7 +27,20 @@ A Docker Compose starter for running a private rAthena server with FluxCP on Unr
 
 ## Images
 
-The push-triggered GitHub Actions workflow is **validation-only** and never publishes images. A separate `Publish container images (manual)` workflow exists for a deliberate release: it requires a manual dispatch, an explicit confirmation checkbox, and a successful validation build before publishing `latest` and commit-SHA tags to GHCR. Only run it after runtime checks pass. GHCR package visibility may need to be changed to public before an Unraid server can pull the images without authentication. This repository does not yet provide a working local-build Compose profile; your current Buildx version may also need updating before source builds will work.
+The push-triggered GitHub Actions workflow is **validation-only** and never publishes images. A separate `Publish container images (manual)` workflow exists for a deliberate release: it requires a manual dispatch, an explicit confirmation checkbox, and a successful validation build before publishing `latest` and commit-SHA tags to GHCR. Only run it after runtime checks pass. GHCR package visibility may need to be changed to public before an Unraid server can pull the images without authentication. Your current Buildx version may need updating before source builds will work.
+
+## Building locally
+
+To build the images from this checkout instead of pulling from GHCR, layer `docker-compose.build.yml` over the main file:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.build.yml build
+docker compose -f docker-compose.yml -f docker-compose.build.yml up -d rathena
+```
+
+Source refs and `PACKETVER` come from the Dockerfile `ARG` defaults, so local builds match CI. Override one per build, for example `docker compose -f docker-compose.yml -f docker-compose.build.yml build --build-arg PACKETVER=... rathena`.
+
+> **Warning:** pass the same `-f docker-compose.yml -f docker-compose.build.yml` flags to every later compose command (`up`, `logs`, `ps`, `restart`, `down`, ...). Without the override, Compose uses the GHCR image names instead of the local `:local` images, and `up` will try to pull images that may not exist.
 
 ## Start
 
