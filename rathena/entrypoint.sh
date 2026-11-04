@@ -7,13 +7,31 @@ rm -f /tmp/rathena-ready
 
 # Unraid bind mounts are commonly root-owned. Initialize and fix ownership once,
 # then re-exec this script as the unprivileged rAthena account.
+#
+# Log sharing: the daemons run with umask 077 for config, but their log files must
+# be readable by the optional supervisor container without becoming world-readable.
+# The daemons therefore run as user "rathena" with primary group RAGNAROK_LOG_GID,
+# log files are created 0640 (umask 027, set just before the daemons start), and the
+# supervisor joins that same group. "Other" never gets any access.
+: "${RAGNAROK_LOG_GID:=10100}"
+case "${RAGNAROK_LOG_GID}" in
+  ""|*[!0-9]*|0) echo "ERROR: RAGNAROK_LOG_GID must be a positive numeric group id (received: ${RAGNAROK_LOG_GID})." >&2; exit 64 ;;
+esac
+
 if [[ "$(id -u)" -eq 0 ]]; then
   mkdir -p conf save log
   if [[ ! -f conf/login_athena.conf || ! -f conf/char_athena.conf || ! -f conf/map_athena.conf ]]; then
     cp -an /usr/share/rathena-default-conf/. conf/
   fi
-  chown -R rathena:rathena conf save log
-  exec gosu rathena "$0" "$@"
+  chown -R rathena:rathena conf save
+  # log/: owner rathena, group = shared log group, rwxr-s--- dirs and rw-r----- files
+  # (also repairs files left at mode 600 by earlier runs). The setgid bit is a
+  # best-effort extra; correctness does not depend on it because the daemons'
+  # primary group is already the log group.
+  chown -R "rathena:${RAGNAROK_LOG_GID}" log
+  find log -type d -exec chmod 2750 {} +
+  find log -type f -exec chmod 0640 {} +
+  exec gosu "rathena:${RAGNAROK_LOG_GID}" "$0" "$@"
 fi
 
 : "${DB_HOST:=ragnarok-db}"
@@ -147,6 +165,11 @@ echo "rAthena configuration prepared."
 echo "Database endpoint: ${DB_HOST}:${DB_PORT}; databases: ${DB_NAME}, ${LOG_DB_NAME}"
 echo "Advertised server address: ${SERVER_IP}; packet version is compiled into this image."
 echo "NOTE: database schema import and public client-address configuration are separate setup steps."
+
+# From here on, files created by the daemons (logs, saves) are group-readable by the
+# log group only. Everything above (generated config containing the DB password) was
+# created with umask 077 and stays private to the rathena user.
+umask 027
 
 # Run the three required daemons concurrently and stop the whole stack if any exits.
 children=()

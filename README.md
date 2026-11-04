@@ -54,6 +54,10 @@ docker compose --profile supervisor up -d ollama-supervisor
 
 The Ollama supervisor is advisory-only: it reads logs and writes reports; it must not execute game commands or modify configuration automatically.
 
+### Log and report permissions
+
+rAthena logs are never world-readable. The rathena container runs its daemons as user `rathena` with primary group `RAGNAROK_LOG_GID` (default `10100`), creates log files as `0640` and log directories as `2750`, and the supervisor joins that numeric group as a supplementary group. The supervisor container starts as root only to fix ownership of the reports directory (which is usually root-owned on Unraid), then drops to a non-root uid/gid. Set `SUPERVISOR_UID`/`SUPERVISOR_GID` in `.env` to choose which owner the reports get (empty uses the image's `supervisor` user). Existing log files left at mode `600` by earlier runs are repaired the next time the rathena container starts, so restart `rathena` before the supervisor.
+
 ## Important
 
 - Back up your MariaDB databases before importing upstream SQL schemas.
