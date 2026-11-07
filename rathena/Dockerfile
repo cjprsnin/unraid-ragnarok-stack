@@ -16,6 +16,20 @@ RUN test -s sql-files/main.sql \
     && grep -Eiq "CREATE[[:space:]]+TABLE[[:space:]]+IF[[:space:]]+NOT[[:space:]]+EXISTS" sql-files/web.sql
 RUN ./configure --enable-packetver="${PACKETVER}" && make server
 
+# Assemble only what the three servers and the entrypoint need at runtime, so the
+# final image does not carry the source tree, object files, 3rdparty, .git or the
+# unused web-server. Runtime file use was verified by tracing a full startup:
+#   login-server, char-server, map-server  the daemons the entrypoint launches
+#   conf/       configuration (the entrypoint also seeds an empty bind mount from it)
+#   db/, npc/   databases and scripts loaded by the map server
+#   sql-files/  schemas the entrypoint imports into empty databases
+# rAthena prints a "Git Hash" banner by reading .git/refs/heads/master; keep that one
+# line (the commit that was actually checked out) instead of the whole repository.
+RUN mkdir -p /runtime/.git/refs/heads \
+    && cp login-server char-server map-server /runtime/ \
+    && cp -a conf db npc sql-files /runtime/ \
+    && git rev-parse HEAD > /runtime/.git/refs/heads/master
+
 FROM ubuntu:24.04
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -23,7 +37,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --system --create-home --home-dir /rathena --shell /usr/sbin/nologin rathena
 WORKDIR /rathena
-COPY --from=build --chown=rathena:rathena /src/ /rathena/
+COPY --from=build --chown=rathena:rathena /runtime/ /rathena/
 COPY --from=build --chown=rathena:rathena /src/conf/ /usr/share/rathena-default-conf/
 COPY --chmod=755 entrypoint.sh /usr/local/bin/rathena-entrypoint
 EXPOSE 6900/tcp 6121/tcp 5121/tcp
