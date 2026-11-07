@@ -70,6 +70,43 @@ if [[ ! -f conf/login_athena.conf || ! -f conf/char_athena.conf || ! -f conf/map
 fi
 
 mkdir -p conf/import save log
+
+# Inter-server credentials. Upstream ships login/char/map servers with the public
+# default s1/p1 (an account row in the `login` table with sex 'S'), which would let
+# anyone who can reach the published ports register a rogue char server. We replace
+# the password with a strong one. It comes from INTERSERVER_PASSWORD (set via
+# RAGNAROK_INTERSERVER_PASSWORD in .env) or, when unset, is generated once and kept
+# in conf/import/.interserver-password so every restart reuses it.
+# rAthena limits the value to 23 characters; restricting it to letters and digits
+# keeps it safe for the config parser and for the SQL statement below.
+INTERSERVER_USERID="s1"
+interserver_secret_file="conf/import/.interserver-password"
+interserver_valid() { [[ "$1" =~ ^[A-Za-z0-9]{16,23}$ ]]; }
+
+if [[ -n "${INTERSERVER_PASSWORD:-}" ]]; then
+  INTERSERVER_PASSWORD_SOURCE="environment"
+  if ! interserver_valid "${INTERSERVER_PASSWORD}"; then
+    echo "ERROR: RAGNAROK_INTERSERVER_PASSWORD must be 16-23 letters/digits only (rAthena allows at most 23 characters). Generate one with: tr -dc 'A-Za-z0-9' </dev/urandom | head -c 23; echo" >&2
+    exit 64
+  fi
+else
+  INTERSERVER_PASSWORD=""
+  if [[ -s "${interserver_secret_file}" ]]; then
+    INTERSERVER_PASSWORD="$(head -n1 "${interserver_secret_file}")"
+  fi
+  if interserver_valid "${INTERSERVER_PASSWORD}"; then
+    INTERSERVER_PASSWORD_SOURCE="stored in ${interserver_secret_file}"
+  else
+    INTERSERVER_PASSWORD=""
+    while [[ ${#INTERSERVER_PASSWORD} -lt 23 ]]; do
+      INTERSERVER_PASSWORD="$(head -c 64 /dev/urandom | base64 -w0 | tr -dc 'A-Za-z0-9')"
+    done
+    INTERSERVER_PASSWORD="${INTERSERVER_PASSWORD:0:23}"
+    ( umask 077; printf '%s\n' "${INTERSERVER_PASSWORD}" > "${interserver_secret_file}" )
+    INTERSERVER_PASSWORD_SOURCE="generated and stored in ${interserver_secret_file}"
+  fi
+fi
+
 # Generate only our dedicated import override; do not overwrite upstream config files.
 cat > conf/import/inter_conf.txt <<EOF
 // Managed by the container entrypoint. Keep local customizations in separate import files.
@@ -105,11 +142,15 @@ EOF
 cat > conf/import/char_conf.txt <<EOF
 // Managed by the container entrypoint.
 char_ip: ${SERVER_IP}
+userid: ${INTERSERVER_USERID}
+passwd: ${INTERSERVER_PASSWORD}
 EOF
 
 cat > conf/import/map_conf.txt <<EOF
 // Managed by the container entrypoint.
 map_ip: ${SERVER_IP}
+userid: ${INTERSERVER_USERID}
+passwd: ${INTERSERVER_PASSWORD}
 EOF
 
 # Wait for the existing MariaDB service; do not create or modify databases.
@@ -161,9 +202,30 @@ else
   echo "AUTO_IMPORT_SQL is disabled; skipping automatic schema initialization."
 fi
 
+# Keep the inter-server account row in step with the configuration above. This runs
+# regardless of AUTO_IMPORT_SQL (that setting only controls schema bootstrap) and only
+# ever UPDATEs the single s1 server row; nothing is dropped, truncated or inserted.
+# The password is validated as letters/digits only, and is sent over stdin so it never
+# appears in a process argument list.
+login_table="$(MYSQL_PWD="${DB_PASSWORD}" mariadb -N -s -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" -D "${DB_NAME}" -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'login';")"
+if [[ "${login_table}" != "1" ]]; then
+  echo "WARNING: table 'login' not found in ${DB_NAME}; inter-server password not synchronized. Import the rAthena schema, then restart this container." >&2
+else
+  server_rows="$(MYSQL_PWD="${DB_PASSWORD}" mariadb -N -s -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" -D "${DB_NAME}" -e "SELECT COUNT(*) FROM \`login\` WHERE account_id = 1 AND userid = '${INTERSERVER_USERID}' AND sex = 'S';")"
+  if [[ "${server_rows}" == "1" ]]; then
+    MYSQL_PWD="${DB_PASSWORD}" mariadb -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" -D "${DB_NAME}" <<SQL
+UPDATE \`login\` SET user_pass = '${INTERSERVER_PASSWORD}' WHERE account_id = 1 AND userid = '${INTERSERVER_USERID}' AND sex = 'S';
+SQL
+    echo "Inter-server account '${INTERSERVER_USERID}' is synchronized with the configured password."
+  else
+    echo "WARNING: inter-server row (account_id 1, userid '${INTERSERVER_USERID}', sex 'S') not found in ${DB_NAME}.login; the login server will reject the char server until a matching 'S' row exists." >&2
+  fi
+fi
+
 echo "rAthena configuration prepared."
 echo "Database endpoint: ${DB_HOST}:${DB_PORT}; databases: ${DB_NAME}, ${LOG_DB_NAME}"
 echo "Advertised server address: ${SERVER_IP}; packet version is compiled into this image."
+echo "Inter-server user: ${INTERSERVER_USERID}; password ${INTERSERVER_PASSWORD_SOURCE} (not shown)."
 echo "NOTE: database schema import and public client-address configuration are separate setup steps."
 
 # From here on, files created by the daemons (logs, saves) are group-readable by the

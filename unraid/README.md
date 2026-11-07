@@ -14,7 +14,7 @@ This directory documents how to deploy the repository's Compose stack with the U
 
 1. Clone or download this repository onto Unraid, for example under `/mnt/user/appdata/ragnarok/ragnarok-stack`.
 2. Copy `.env.example` to `.env` in that folder.
-3. Edit `.env`: set `SERVER_IP` to the Unraid LAN IP, replace both example passwords, and confirm `APPDATA_ROOT`. Keep `.env` private and never commit it.
+3. Edit `.env`: set `SERVER_IP` to the Unraid LAN IP, replace both example passwords, and confirm `APPDATA_ROOT`. Optionally set `RAGNAROK_INTERSERVER_PASSWORD` (16-23 letters/digits); if you leave it empty, the rathena container generates a strong one on first start and stores it in `conf/import/.interserver-password` (see the repository `README.md`). Keep `.env` private and never commit it.
 4. Confirm the existing MariaDB container is on the `ragnarok` network with alias `ragnarok-db`. Do not create a second MariaDB service.
 5. Import the repository-root `docker-compose.yml` into Compose Manager as a stack and set its working directory to the folder containing `.env`.
 6. Run `docker compose config -q` from that folder before starting anything.

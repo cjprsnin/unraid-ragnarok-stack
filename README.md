@@ -67,6 +67,15 @@ docker compose --profile supervisor up -d ollama-supervisor
 
 The Ollama supervisor is advisory-only: it reads logs and writes reports; it must not execute game commands or modify configuration automatically.
 
+### Inter-server credentials
+
+The login, char and map servers authenticate to each other with an account row in the `login` table (sex `S`). Upstream ships it as the public default `s1`/`p1`, and ports 6900/6121/5121 are published, so anyone on the LAN could register a fake char server. The rathena entrypoint therefore replaces the password on every start:
+
+- Set `RAGNAROK_INTERSERVER_PASSWORD` in `.env` to 16-23 letters/digits (rAthena allows at most 23 characters), for example `tr -dc 'A-Za-z0-9' </dev/urandom | head -c 23; echo`. Anything else is rejected at startup.
+- If it is empty, the container generates a 23-character value on first start and keeps it in `conf/import/.interserver-password` (mode 600), so restarts reuse it. Setting the variable later takes precedence.
+- The value is written as `userid`/`passwd` into the managed `conf/import/char_conf.txt` and `conf/import/map_conf.txt` (upstream's documented override mechanism), and the single `s1` row in `login` is updated to match. This happens on every start, whatever `AUTO_IMPORT_SQL` is set to, and only ever UPDATEs that one row; nothing is dropped, truncated or inserted. If the `login` table does not exist yet (manual schema management), the container warns and you should restart it after importing the schema.
+- The username stays `s1`; the password is the secret. The password is never printed in container logs.
+
 ### Supervisor scan behavior
 
 Each cycle the supervisor looks at the newest 5 files under the log directory (`SCAN_NEWEST_FILES`) and only sends a file to Ollama if its modification time or size changed since its last successful analysis; failed analyses are retried next cycle. That bookkeeping is kept in `.supervisor-state.json` inside the reports directory, so a restart does not re-analyze unchanged files. Reports mirror the log tree (`char/char-server.log` is reported as `char/char-server.log.analysis.json`), so same-named files in different folders no longer overwrite each other; top-level files keep their old report names.
