@@ -1,0 +1,18 @@
+# Optional override that turns on rAthena's web server (HTTP backend used by newer clients
+# for guild emblems, party booking, merchant store and saved client settings).
+#
+# It is off by default and the base stack publishes no web port. Enable it by adding this
+# file, and pass the same -f flags to every later compose command (see README.md):
+#   docker compose -f docker-compose.yml -f docker-compose.web.yml up -d rathena
+#
+# Combine with the local-build override if you build locally:
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml -f docker-compose.web.yml up -d rathena
+#
+# The host port can be changed with RAGNAROK_WEB_PORT in .env; the container always listens
+# on 8888. This exposes one more service on your network, so only publish it where you want it.
+services:
+  rathena:
+    environment:
+      ENABLE_WEB_SERVER: "true"
+    ports:
+      - "${RAGNAROK_WEB_PORT:-8888}:8888/tcp"

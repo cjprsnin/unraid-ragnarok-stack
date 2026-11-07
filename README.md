@@ -67,6 +67,16 @@ docker compose --profile supervisor up -d ollama-supervisor
 
 The Ollama supervisor is advisory-only: it reads logs and writes reports; it must not execute game commands or modify configuration automatically.
 
+### Optional web server
+
+rAthena's web server is a separate HTTP service (port 8888 in the container) used by newer clients for guild emblems, party booking, the merchant store and saved client settings. Logging in and playing do not need it, so it is **off by default** and the base stack publishes no web port. To enable it, add the override file and pass the same `-f` flags to every later compose command:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.web.yml up -d rathena
+```
+
+If you build locally, list all three files (`-f docker-compose.yml -f docker-compose.build.yml -f docker-compose.web.yml`). The override sets `ENABLE_WEB_SERVER=true`, publishes `RAGNAROK_WEB_PORT` (default 8888) to the container's 8888 and extends the healthcheck to cover it. The entrypoint writes the web server's database settings (it reuses the same database user) and creates an empty `conf/import/web_conf.txt` for your own overrides, such as `allowed_origin_cors`. Requests are authenticated with the per-account token the login server issues (`use_web_auth_token`, on by default). Which address clients use is configured on the client side, not here, so you must point your client's configuration at `http://<server-ip>:<RAGNAROK_WEB_PORT>`; this repository cannot verify that part. Enabling it exposes one more service on your network. Note that upstream deliberately leaves the three `load` endpoints (user config, character config, merchant store) unauthenticated, so anyone who can reach the port can read those saved client settings for a given account ID; saving, emblems and party booking require a valid token. Do not forward this port to the internet unless you accept that.
+
 ### Inter-server credentials
 
 The login, char and map servers authenticate to each other with an account row in the `login` table (sex `S`). Upstream ships it as the public default `s1`/`p1`, and ports 6900/6121/5121 are published, so anyone on the LAN could register a fake char server. The rathena entrypoint therefore replaces the password on every start:

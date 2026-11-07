@@ -13,6 +13,11 @@ rm -f /tmp/rathena-ready
 # The daemons therefore run as user "rathena" with primary group RAGNAROK_LOG_GID,
 # log files are created 0640 (umask 027, set just before the daemons start), and the
 # supervisor joins that same group. "Other" never gets any access.
+case "${ENABLE_WEB_SERVER:-false}" in
+  true|TRUE|True|1|yes) ENABLE_WEB_SERVER=true ;;
+  false|FALSE|False|0|no|"") ENABLE_WEB_SERVER=false ;;
+  *) echo "ERROR: ENABLE_WEB_SERVER must be true or false (received: ${ENABLE_WEB_SERVER})." >&2; exit 64 ;;
+esac
 : "${RAGNAROK_LOG_GID:=10100}"
 case "${RAGNAROK_LOG_GID}" in
   ""|*[!0-9]*|0) echo "ERROR: RAGNAROK_LOG_GID must be a positive numeric group id (received: ${RAGNAROK_LOG_GID})." >&2; exit 64 ;;
@@ -130,6 +135,11 @@ map_server_port: ${DB_PORT}
 map_server_id: ${DB_USER}
 map_server_pw: ${DB_PASSWORD}
 map_server_db: ${DB_NAME}
+web_server_ip: ${DB_HOST}
+web_server_port: ${DB_PORT}
+web_server_id: ${DB_USER}
+web_server_pw: ${DB_PASSWORD}
+web_server_db: ${DB_NAME}
 log_db_ip: ${DB_HOST}
 log_db_port: ${DB_PORT}
 log_db_id: ${DB_USER}
@@ -202,6 +212,12 @@ else
   echo "AUTO_IMPORT_SQL is disabled; skipping automatic schema initialization."
 fi
 
+# web_athena.conf imports this file; create an empty placeholder (never overwrite one the
+# operator edited, for example to set allowed_origin_cors) so the web server starts quietly.
+if [[ "${ENABLE_WEB_SERVER}" == "true" && ! -e conf/import/web_conf.txt ]]; then
+  printf '%s\n' "// Local web-server overrides (for example allowed_origin_cors). Not managed by the entrypoint." > conf/import/web_conf.txt
+fi
+
 # Keep the inter-server account row in step with the configuration above. This runs
 # regardless of AUTO_IMPORT_SQL (that setting only controls schema bootstrap) and only
 # ever UPDATEs the single s1 server row; nothing is dropped, truncated or inserted.
@@ -225,6 +241,7 @@ fi
 echo "rAthena configuration prepared."
 echo "Database endpoint: ${DB_HOST}:${DB_PORT}; databases: ${DB_NAME}, ${LOG_DB_NAME}"
 echo "Advertised server address: ${SERVER_IP}; packet version is compiled into this image."
+echo "Web server: ${ENABLE_WEB_SERVER} (enable with docker-compose.web.yml)."
 echo "Inter-server user: ${INTERSERVER_USERID}; password ${INTERSERVER_PASSWORD_SOURCE} (not shown)."
 echo "NOTE: database schema import and public client-address configuration are separate setup steps."
 
@@ -233,7 +250,8 @@ echo "NOTE: database schema import and public client-address configuration are s
 # created with umask 077 and stays private to the rathena user.
 umask 027
 
-# Run the three required daemons concurrently and stop the whole stack if any exits.
+# Run the required daemons (plus the optional web server) concurrently and stop the whole
+# stack if any exits.
 children=()
 cleanup() {
   trap - TERM INT
@@ -248,6 +266,10 @@ children+=("$!")
 children+=("$!")
 ./map-server &
 children+=("$!")
+if [[ "${ENABLE_WEB_SERVER}" == "true" ]]; then
+  ./web-server &
+  children+=("$!")
+fi
 
 sleep 2
 for pid in "${children[@]}"; do

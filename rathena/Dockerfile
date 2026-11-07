@@ -18,15 +18,16 @@ RUN ./configure --enable-packetver="${PACKETVER}" && make server
 
 # Assemble only what the three servers and the entrypoint need at runtime, so the
 # final image does not carry the source tree, object files, 3rdparty, .git or the
-# unused web-server. Runtime file use was verified by tracing a full startup:
+# optional web-server's source. Runtime file use was verified by tracing a full startup:
 #   login-server, char-server, map-server  the daemons the entrypoint launches
+#   web-server  started only when ENABLE_WEB_SERVER=true (see docker-compose.web.yml)
 #   conf/       configuration (the entrypoint also seeds an empty bind mount from it)
 #   db/, npc/   databases and scripts loaded by the map server
 #   sql-files/  schemas the entrypoint imports into empty databases
 # rAthena prints a "Git Hash" banner by reading .git/refs/heads/master; keep that one
 # line (the commit that was actually checked out) instead of the whole repository.
 RUN mkdir -p /runtime/.git/refs/heads \
-    && cp login-server char-server map-server /runtime/ \
+    && cp login-server char-server map-server web-server /runtime/ \
     && cp -a conf db npc sql-files /runtime/ \
     && git rev-parse HEAD > /runtime/.git/refs/heads/master
 
