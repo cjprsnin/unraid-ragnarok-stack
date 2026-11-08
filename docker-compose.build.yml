@@ -7,7 +7,7 @@
 #   docker compose -f docker-compose.yml -f docker-compose.build.yml build
 #   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d rathena
 #
-# Source refs (RATHENA_REF, FLUXCP_REF, OPENKORE_REF) and PACKETVER come from
+# Source refs (RATHENA_REF, FLUXCP_REF) and PACKETVER come from
 # the ARG defaults in each Dockerfile, so local builds use the same pinned
 # versions as CI and cannot drift from it. Override one per build with, e.g.:
 #   docker compose -f docker-compose.yml -f docker-compose.build.yml \
@@ -19,9 +19,6 @@ services:
   fluxcp:
     image: ragnarok-fluxcp:local
     build: { context: ./fluxcp }
-  openkore:
-    image: ragnarok-openkore:local
-    build: { context: ./openkore }
   ollama-supervisor:
     image: ragnarok-ollama-supervisor:local
     build: { context: ./supervisor }

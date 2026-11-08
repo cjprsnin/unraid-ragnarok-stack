@@ -29,7 +29,6 @@ This directory documents how to deploy the repository's Compose stack with the U
 
 - rAthena: TCP 6900 (login), 6121 (character), 5121 (map).
 - FluxCP: host port `FLUXCP_PORT` (default 8080) to container port 80.
-- OpenKore is opt-in with `--profile bot` / Compose Manager profile support.
 - The Ollama supervisor is opt-in with `--profile supervisor` and is disabled by default.
 
 ## SQL safety

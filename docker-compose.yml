@@ -62,23 +62,6 @@ services:
       rathena:
         condition: service_healthy
 
-  openkore:
-    image: ghcr.io/cjprsnin/ragnarok-openkore:latest
-    container_name: ragnarok-openkore
-    profiles: ["bot"]
-    restart: unless-stopped
-    env_file: .env
-    environment:
-      RO_SERVER_IP: ${SERVER_IP:?Set SERVER_IP in .env}
-      RO_USER: ${RO_USER:-}
-      RO_PASS: ${RO_PASS:-}
-    volumes:
-      - ${APPDATA_ROOT:-/mnt/user/appdata/ragnarok}/openkore/control:/opt/openkore/control
-    networks:
-      - ragnarok
-    depends_on:
-      - rathena
-
   ollama-supervisor:
     image: ghcr.io/cjprsnin/ragnarok-ollama-supervisor:latest
     container_name: ragnarok-ollama-supervisor

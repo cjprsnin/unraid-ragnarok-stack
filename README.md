@@ -9,7 +9,6 @@ A Docker Compose starter for running a private rAthena server with FluxCP on Unr
 - Uses an existing MariaDB container; this project does not deploy a second database.
 - MariaDB must be attached to the Compose network with alias `ragnarok-db`.
 - rAthena and FluxCP are the default services.
-- OpenKore is opt-in with the `bot` profile.
 - The Ollama log-analysis helper is opt-in with the `supervisor` profile and is disabled by default.
 - Persistent data belongs under the configured Unraid appdata directory.
 - FluxCP generates its initial application and database configuration from environment variables on first start; its config files then persist under appdata for manual customization.
@@ -61,7 +60,6 @@ docker compose up -d fluxcp
 Optional services:
 
 ```bash
-docker compose --profile bot up -d openkore
 docker compose --profile supervisor up -d ollama-supervisor
 ```
 
