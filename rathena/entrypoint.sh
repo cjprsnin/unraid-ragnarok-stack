@@ -208,6 +208,20 @@ if [[ "${AUTO_IMPORT_SQL,,}" == "true" ]]; then
   # FluxCP uses these tables for web-side configuration and guild emblem data.
   echo "Ensuring rAthena web schema tables exist in ${DB_NAME}."
   MYSQL_PWD="${DB_PASSWORD}" mariadb -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}" < /rathena/sql-files/web.sql
+
+  # FluxCP's item, monster and monster-skill pages read these (renewal) tables; without
+  # them they fail. The upstream files begin with DROP TABLE IF EXISTS, so each one is
+  # run ONLY when its table is absent, and that line is stripped as a second guard: an
+  # existing table is never dropped, truncated or re-imported. The tables are created
+  # empty; populating them (for example with rAthena's yaml2sql tool) is a separate step.
+  for table_file in item_db_re item_db2_re mob_db_re mob_db2_re mob_skill_db_re mob_skill_db2_re; do
+    table_exists="$(MYSQL_PWD="${DB_PASSWORD}" mariadb -N -s -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" -D "${DB_NAME}" -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = '${table_file}';")"
+    if [[ "${table_exists}" == "0" ]]; then
+      echo "Creating missing table ${DB_NAME}.${table_file} (used by FluxCP)."
+      sed '/^DROP TABLE IF EXISTS/d' "/rathena/sql-files/${table_file}.sql" \
+        | MYSQL_PWD="${DB_PASSWORD}" mariadb -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" "${DB_NAME}"
+    fi
+  done
 else
   echo "AUTO_IMPORT_SQL is disabled; skipping automatic schema initialization."
 fi
