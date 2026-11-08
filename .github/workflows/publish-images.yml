@@ -6,7 +6,6 @@ on:
     paths:
       - "rathena/**"
       - "fluxcp/**"
-      - "openkore/**"
       - "supervisor/**"
       - ".github/workflows/publish-images.yml"
       - ".github/workflows/manual-publish-images.yml"
@@ -41,10 +40,6 @@ jobs:
             context: ./fluxcp
             dockerfile: ./fluxcp/Dockerfile
             build_args: FLUXCP_REF=98cd4b8fd83228c11b36fb3d097b8e0f7c105a8d
-          - name: ragnarok-openkore
-            context: ./openkore
-            dockerfile: ./openkore/Dockerfile
-            build_args: OPENKORE_REF=51de1ddfc4449ae5217f6886de702f87ca934030
           - name: ragnarok-ollama-supervisor
             context: ./supervisor
             dockerfile: ./supervisor/Dockerfile
@@ -56,7 +51,6 @@ jobs:
       - name: Check shell script syntax
         run: |
           bash -n rathena/entrypoint.sh
-          bash -n openkore/entrypoint.sh
           sh -n fluxcp/docker-entrypoint.sh
 
       - name: Validate Compose configuration and safety invariants
@@ -70,7 +64,6 @@ jobs:
           ' >/dev/null
           # Compose normalizes away inactive profile metadata in config output,
           # so assert opt-in profiles directly against the source Compose file.
-          grep -Eq 'profiles:[[:space:]]*\["bot"\]' docker-compose.yml
           grep -Eq 'profiles:[[:space:]]*\["supervisor"\]' docker-compose.yml
           rm .env
 
